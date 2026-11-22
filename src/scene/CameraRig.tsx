@@ -52,6 +52,7 @@ export function CameraRig() {
       // acompanha redimensionamentos da janela
       const target = aerialPose(state.size.width / state.size.height)
       pose.dist = MathUtils.damp(pose.dist, target.dist, 3, delta)
+      pose.tx = MathUtils.damp(pose.tx, target.tx, 3, delta)
       m.idle += delta
     }
 
