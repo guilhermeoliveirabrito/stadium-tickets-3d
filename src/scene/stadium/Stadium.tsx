@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { AdBoards } from './AdBoards'
 import { Facade } from './Facade'
+import { Fireworks } from './Fireworks'
 import { Floodlights } from './Floodlights'
 import { Pitch } from './Pitch'
 import { Roof } from './Roof'
@@ -28,6 +29,7 @@ export function Stadium() {
       <Facade />
       <Floodlights />
       <NeonClock />
+      <Fireworks />
     </group>
   )
 }
