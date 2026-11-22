@@ -1,18 +1,18 @@
-import { Environment, Sky } from '@react-three/drei'
+import { Environment } from '@react-three/drei'
 import { useMemo } from 'react'
 import { BackSide } from 'three'
-import { FOG, SKY, SUN_DIRECTION } from '../config/world'
+import { FOG, SUN_DIRECTION } from '../config/world'
+import { GradientSky } from './GradientSky'
 
 export function Atmosphere() {
-  const sunPosition = useMemo(() => SUN_DIRECTION.clone().multiplyScalar(1000), [])
   const lightPosition = useMemo(() => SUN_DIRECTION.clone().multiplyScalar(600), [])
 
   return (
     <>
-      <Sky distance={4500} sunPosition={sunPosition} {...SKY} />
+      <GradientSky />
 
       <Environment resolution={256} frames={1} environmentIntensity={0.36}>
-        <Sky distance={400} sunPosition={sunPosition} {...SKY} />
+        <GradientSky radius={400} animated={false} clouds={0.6} />
         {/* metade de baixo do mapa: grama e concreto refletindo luz */}
         <mesh position-y={-210} scale={[400, 200, 400]}>
           <sphereGeometry args={[1, 32, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2]} />

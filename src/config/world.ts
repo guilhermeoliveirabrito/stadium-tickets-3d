@@ -12,11 +12,4 @@ export const SUN_DIRECTION = new Vector3(
   -Math.cos(sunElevation) * Math.cos(sunAzimuth),
 ).normalize()
 
-export const SKY = {
-  turbidity: 6,
-  rayleigh: 1.15,
-  mieCoefficient: 0.0045,
-  mieDirectionalG: 0.82,
-}
-
-export const FOG = { color: '#c9d5df', near: 900, far: 3600 }
+export const FOG = { color: '#cbd9e6', near: 800, far: 3800 }
