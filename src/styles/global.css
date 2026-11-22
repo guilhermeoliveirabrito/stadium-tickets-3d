@@ -51,14 +51,9 @@ button {
 .app {
   position: fixed;
   inset: 0;
-  display: grid;
-  place-items: center;
 }
 
-.app__placeholder {
-  color: #fff;
-  font-size: 14px;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  opacity: 0.6;
+.experience {
+  position: absolute !important;
+  inset: 0;
 }
