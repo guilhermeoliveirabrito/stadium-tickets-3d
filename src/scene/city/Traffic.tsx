@@ -5,6 +5,7 @@ import {
   Color,
   DynamicDrawUsage,
   InstancedMesh,
+  Matrix4,
   MeshBasicMaterial,
   MeshStandardMaterial,
   Object3D,
@@ -88,18 +89,25 @@ export function Traffic() {
     parked.current!.computeBoundingSphere()
   }, [plan])
 
-  const scratch = useRef({ dummy: new Object3D(), sample: { x: 0, z: 0, heading: 0, speed: 0, braking: false } })
+  const scratch = useRef({
+    dummy: new Object3D(),
+    hidden: new Matrix4().makeScale(0, 0, 0),
+    sample: { x: 0, z: 0, heading: 0, speed: 0, braking: false, lights: true },
+  })
 
   useFrame((_, delta) => {
     clock.current += Math.min(delta, 0.1)
-    const { dummy, sample } = scratch.current
-    const meshes = [bodies.current!, heads.current!, tails.current!, beams.current!, glows.current!]
+    const { dummy, hidden, sample } = scratch.current
+    const lights = [heads.current!, tails.current!, beams.current!, glows.current!]
+    const meshes = [bodies.current!, ...lights]
     plan.cars.forEach((car, i) => {
       sampleTrack(plan.tracks[car.track], clock.current + car.offset, sample)
       dummy.position.set(sample.x, 0, sample.z)
       dummy.rotation.set(0, sample.heading, 0)
       dummy.updateMatrix()
-      for (const mesh of meshes) mesh.setMatrixAt(i, dummy.matrix)
+      bodies.current!.setMatrixAt(i, dummy.matrix)
+      // estacionado com o motor desligado: faróis, lanternas e manchas apagam
+      for (const mesh of lights) mesh.setMatrixAt(i, sample.lights ? dummy.matrix : hidden)
       tails.current!.setColorAt(i, sample.braking ? BRAKE : CRUISE)
     })
     for (const mesh of meshes) mesh.instanceMatrix.needsUpdate = true

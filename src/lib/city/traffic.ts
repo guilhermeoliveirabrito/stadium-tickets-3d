@@ -25,8 +25,16 @@ export interface Leg {
   dwell?: number
 }
 
+/** valores guardados por amostra: x, z, rumo, velocidade, luzes acesas (0 ou 1) */
+const STRIDE = 5
+
+/** Em paradas longas o motor desliga: as luzes apagam depois de parar e voltam antes de sair. */
+const ENGINE_OFF_AFTER = 1.2
+const ENGINE_ON_BEFORE = 1.6
+const LONG_STOP = 3
+
 export interface Track {
-  /** [x, z, rumo, velocidade] por amostra */
+  /** [x, z, rumo, velocidade, luzes] por amostra */
   data: Float32Array
   samples: number
   duration: number
@@ -194,7 +202,7 @@ export function buildTrack(legs: Leg[], closed = false): Track {
   const duration = leave[n - 1] + (closed ? Math.hypot(pts[0].x - pts[n - 1].x, pts[0].z - pts[n - 1].z) / Math.max(0.5, v[0]) : 0)
 
   const samples = Math.ceil(duration / DT) + 1
-  const data = new Float32Array(samples * 4)
+  const data = new Float32Array(samples * STRIDE)
   let seg = 1
   let heading = Math.atan2(pts[1].x - pts[0].x, pts[1].z - pts[0].z) + (pts[1].reverse ? Math.PI : 0)
   for (let k = 0; k < samples; k++) {
@@ -205,11 +213,15 @@ export function buildTrack(legs: Leg[], closed = false): Track {
     let x: number
     let z: number
     let speed: number
+    let lights = 1
     if (t <= leave[seg - 1]) {
       // parado no ponto anterior
       x = a.x
       z = a.z
       speed = 0
+      const arrived = time[seg - 1]
+      const leaves = leave[seg - 1]
+      if (leaves - arrived >= LONG_STOP && t > arrived + ENGINE_OFF_AFTER && t < leaves - ENGINE_ON_BEFORE) lights = 0
     } else {
       const span = time[seg] - leave[seg - 1]
       const f = span > 0 ? Math.min(1, (t - leave[seg - 1]) / span) : 1
@@ -220,20 +232,29 @@ export function buildTrack(legs: Leg[], closed = false): Track {
       const dz = b.z - a.z
       if (dx * dx + dz * dz > 1e-6) heading = Math.atan2(dx, dz) + (b.reverse ? Math.PI : 0)
     }
-    data.set([x, z, heading, speed], k * 4)
+    data.set([x, z, heading, speed, lights], k * STRIDE)
   }
   return { data, samples, duration }
 }
 
 /** Posição de um carro na trajetória (com interpolação suave do rumo). */
-export function sampleTrack(track: Track, time: number, out: { x: number; z: number; heading: number; speed: number; braking: boolean }) {
+export interface TrackSample {
+  x: number
+  z: number
+  heading: number
+  speed: number
+  braking: boolean
+  lights: boolean
+}
+
+export function sampleTrack(track: Track, time: number, out: TrackSample) {
   const t = ((time % track.duration) + track.duration) % track.duration
   const f = t / DT
   const i = Math.min(track.samples - 2, Math.floor(f))
   const u = f - i
   const d = track.data
-  const a = i * 4
-  const b = a + 4
+  const a = i * STRIDE
+  const b = a + STRIDE
   out.x = d[a] + (d[b] - d[a]) * u
   out.z = d[a + 1] + (d[b + 1] - d[a + 1]) * u
   let dh = d[b + 2] - d[a + 2]
@@ -242,6 +263,7 @@ export function sampleTrack(track: Track, time: number, out: { x: number; z: num
   out.heading = d[a + 2] + dh * u
   out.speed = d[a + 3] + (d[b + 3] - d[a + 3]) * u
   out.braking = d[b + 3] < d[a + 3] - 0.02 || out.speed < 0.3
+  out.lights = d[a + 4] > 0.5
   return out
 }
 
@@ -283,8 +305,15 @@ const ROAD_LANE = 2.4
 
 interface RouteKit {
   rand: Random
-  add: (legs: Leg[], cars: number, closed?: boolean) => void
+  /**
+   * Cria a rota com `cars` carros. Com `focus`, o primeiro carro é defasado
+   * para já estar dentro dessa área quando a abertura termina.
+   */
+  add: (legs: Leg[], cars: number, closed?: boolean, focus?: (x: number, z: number) => boolean) => void
 }
+
+/** Momento (s desde o carregamento) em que a abertura costuma terminar. */
+const INTRO_END = 9
 
 /** Divide um caminho em dois trechos com velocidades diferentes, no ponto mais próximo de `at`. */
 function splitAt(points: Vec2[], at: (p: Vec2) => boolean): [Vec2[], Vec2[]] {
@@ -321,6 +350,7 @@ function lotRoutes(city: CityLayout, { rand, add }: RouteKit) {
   // vista aérea (o canto sudoeste fica atrás do painel da interface)
   const visible = (s: { x: number; z: number }) => s.x > lot.x0 + (lot.x1 - lot.x0) * 0.42 && s.z < lot.z1 - 40
   const free = lot.stalls.filter((s) => !s.occupied && visible(s))
+  const insideLot = (x: number, z: number) => x > lot.x0 && x < lot.x1 + 8 && z > lot.z0 - 8 && z < lot.z1 + 8
   const pick = () => free.splice(Math.floor(rand() * free.length), 1)[0]
   const aisleOf = (x: number) => lot.aisles.reduce((best, a) => (Math.abs(a - x) < Math.abs(best - x) ? a : best), lot.aisles[0])
   /** faixa de circulação: a direita do sentido de marcha (oeste → norte, leste → sul) */
@@ -356,6 +386,8 @@ function lotRoutes(city: CityLayout, { rand, add }: RouteKit) {
         { points: outbound, speed: 7 },
       ],
       2,
+      false,
+      insideLot,
     )
   }
 
@@ -397,6 +429,8 @@ function lotRoutes(city: CityLayout, { rand, add }: RouteKit) {
         { points: onAvenue, speed: TURN_SPEED },
       ],
       2,
+      false,
+      insideLot,
     )
   }
 }
@@ -539,14 +573,34 @@ export function buildTraffic(city: CityLayout): TrafficPlan {
   const rand = mulberry32(911)
   const tracks: Track[] = []
   const cars: MovingCar[] = []
+  let focused = 0
   const kit: RouteKit = {
     rand,
-    add: (legs, count, closed = false) => {
+    add: (legs, count, closed = false, focus) => {
       const track = buildTrack(legs, closed)
       const index = tracks.push(track) - 1
+      let base = track.duration * (0.5 + (rand() - 0.5) * 0.12) / count
+      if (focus) {
+        // janela em que a rota passa pela área de interesse
+        let first = -1
+        let last = -1
+        for (let k = 0; k < track.samples; k++) {
+          if (focus(track.data[k * STRIDE], track.data[k * STRIDE + 1])) {
+            if (first < 0) first = k
+            last = k
+          }
+        }
+        if (first >= 0) {
+          // cada rota começa num ponto diferente da janela: entrando, manobrando,
+          // estacionado, dando ré ou saindo
+          const share = ((focused++ * 0.618) % 1) * 0.9 + 0.05
+          const target = (first + (last - first) * share) * DT
+          base = target - INTRO_END
+        }
+      }
       for (let k = 0; k < count; k++) {
-        const jitter = (rand() - 0.5) * 0.12
-        cars.push({ track: index, offset: track.duration * ((k + 0.5 + jitter) / count), color: carColor(rand) })
+        const offset = base + (track.duration * k) / count
+        cars.push({ track: index, offset, color: carColor(rand) })
       }
     },
   }
