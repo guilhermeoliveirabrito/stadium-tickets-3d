@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { getCity } from '../../lib/city/layout'
 import { Buildings } from './Buildings'
+import { Crowd } from './Crowd'
 import { Ground } from './Ground'
 import { StreetLights } from './StreetLights'
 import { Traffic } from './Traffic'
@@ -15,6 +16,7 @@ export function City() {
       <StreetLights lamps={city.lamps} />
       <Trees trees={city.trees} />
       <Traffic />
+      <Crowd />
     </group>
   )
 }
