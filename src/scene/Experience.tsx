@@ -3,7 +3,7 @@ import { NIGHT } from '../config/world'
 import { Atmosphere } from './Atmosphere'
 import { CameraRig } from './CameraRig'
 import { DevCamera } from './DevCamera'
-import { Park } from './park/Park'
+import { City } from './city/City'
 import { PostFX } from './PostFX'
 import { ReadySignal } from './ReadySignal'
 import { StaticShadows } from './StaticShadows'
@@ -26,7 +26,7 @@ export function Experience() {
       <Atmosphere />
       {devCamera ? <DevCamera /> : <CameraRig />}
       <Stadium />
-      <Park />
+      <City />
       <StaticShadows />
       <PostFX />
       <ReadySignal skipIntro={devCamera} />

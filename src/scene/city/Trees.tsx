@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import {
+  BoxGeometry,
   BufferAttribute,
   BufferGeometry,
   Color,
@@ -11,7 +12,7 @@ import {
   Object3D,
 } from 'three'
 import { mergeGeometries, mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
-import type { TreeSpec } from '../../lib/park'
+import type { TreeSpec } from '../../lib/city/layout'
 import { mulberry32, valueNoise } from '../../lib/random'
 
 function lumpy(geometry: BufferGeometry, seed: number, amount = 0.2) {
@@ -54,7 +55,39 @@ function canopyVariants() {
       lumpy(new IcosahedronGeometry(0.7, 1), 13, 0.2).translate(0.4, 0.08, -0.12),
     ])!,
   )
-  return [broad, pine, cluster]
+  return [broad, pine, cluster, createPalm()]
+}
+
+/** Palmeira em escala unitária: tronco de 0 a 1 e folhas abertas no topo. */
+function createPalm() {
+  const parts: BufferGeometry[] = []
+  const paint = (g: BufferGeometry, r: number, gr: number, b: number) => {
+    const count = g.attributes.position.count
+    const colors = new Float32Array(count * 3)
+    for (let i = 0; i < count; i++) colors.set([r, gr, b], i * 3)
+    g.setAttribute('color', new BufferAttribute(colors, 3))
+    if (g.attributes.uv) g.deleteAttribute('uv')
+    return g
+  }
+  parts.push(paint(new CylinderGeometry(0.03, 0.05, 1, 6, 1, true).translate(0, 0.5, 0), 0.36, 0.28, 0.19))
+  const fronds = 9
+  for (let i = 0; i < fronds; i++) {
+    const yaw = (i / fronds) * Math.PI * 2 + (i % 2) * 0.2
+    const inner = new BoxGeometry(0.16, 0.012, 0.55).translate(0, 0, 0.27)
+    inner.rotateX(-0.25)
+    const outer = new BoxGeometry(0.13, 0.012, 0.5).translate(0, 0, 0.25)
+    outer.rotateX(0.55)
+    outer.translate(0, 0.13, 0.52)
+    for (const leaf of [inner, outer]) {
+      leaf.rotateY(yaw)
+      leaf.translate(0, 0.99, 0)
+      const shade = 0.85 + (i % 3) * 0.08
+      parts.push(paint(leaf, 0.17 * shade, 0.33 * shade, 0.12 * shade))
+    }
+  }
+  const palm = mergeGeometries(parts)!
+  palm.computeVertexNormals()
+  return palm
 }
 
 const PALETTE = ['#25421d', '#2f5225', '#3a5f2a', '#476c30', '#55783a', '#2c4b26']
@@ -70,6 +103,15 @@ function TreeVariant({ trees, geometry, material }: { trees: TreeSpec[]; geometr
     const palette = PALETTE.map((c) => new Color(c))
     const blossom = BLOSSOM.map((c) => new Color(c))
     trees.forEach((t, i) => {
+      if (t.variant === 3) {
+        dummy.position.set(t.x, 0, t.z)
+        dummy.rotation.set(0, rand() * Math.PI * 2, (rand() - 0.5) * 0.08)
+        dummy.scale.set(t.radius, t.height, t.radius)
+        dummy.updateMatrix()
+        mesh.setMatrixAt(i, dummy.matrix)
+        mesh.setColorAt(i, color.setScalar(0.9 + rand() * 0.2))
+        return
+      }
       const pine = t.variant === 1
       const trunk = t.height - t.radius * (pine ? 2.2 : 1.6)
       dummy.position.set(t.x, trunk + t.radius * (pine ? 1.0 : 0.82), t.z)
@@ -130,7 +172,8 @@ export function Trees({ trees }: { trees: TreeSpec[] }) {
   const { variants, material, chunks } = useMemo(() => {
     const variants = canopyVariants()
     const chunks = chunked(trees).map((list) => ({
-      all: list,
+      // as palmeiras já têm tronco na própria geometria
+      all: list.filter((t) => t.variant !== 3),
       byVariant: variants.map((_, v) => list.filter((t) => t.variant === v)),
     }))
     return {
@@ -149,7 +192,7 @@ export function Trees({ trees }: { trees: TreeSpec[] }) {
               <TreeVariant key={v} trees={chunk.byVariant[v]} geometry={geometry} material={material} />
             ) : null,
           )}
-          <Trunks trees={chunk.all} />
+          {chunk.all.length > 0 && <Trunks trees={chunk.all} />}
         </group>
       ))}
     </group>

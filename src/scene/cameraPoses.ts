@@ -10,14 +10,16 @@ export interface Pose {
   fov: number
 }
 
-// começa a oeste-sudoeste, com a fachada iluminada, e contorna pelo sul
-export const INTRO_START: Pose = { az: -1.05, el: 0.085, dist: 400, tx: 0, ty: 22, tz: 0, fov: 40 }
-export const INTRO_SWEEP: Partial<Pose> = { az: 0.55, el: 0.27, dist: 340, ty: 8 }
+// Começa sobre o bairro do outro lado da avenida, com o estacionamento em
+// primeiro plano e o skyline atrás do estádio, e contorna pelo sul.
+export const INTRO_START: Pose = { az: -0.78, el: 0.1, dist: 480, tx: -30, ty: 22, tz: 0, fov: 40 }
+export const INTRO_SWEEP: Partial<Pose> = { az: 0.45, el: 0.28, dist: 360, tx: -20, ty: 8 }
 
 /** Vista de cima, enquadrando o estádio e um pouco do parque em qualquer proporção de tela. */
 export function aerialPose(aspect: number): Pose {
   const fov = 32
   const t = Math.tan(MathUtils.degToRad(fov / 2))
-  const dist = Math.max(172 / t, 150 / (t * aspect))
-  return { az: 0, el: 1.37, dist, tx: 0, ty: 0, tz: 14, fov }
+  const dist = Math.max(186 / t, 160 / (t * aspect))
+  // um pouco para oeste, para o estacionamento aparecer ao lado do estádio
+  return { az: 0, el: 1.37, dist, tx: -46, ty: 0, tz: 16, fov }
 }
