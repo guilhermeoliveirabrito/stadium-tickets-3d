@@ -1,15 +1,19 @@
-import { BoxGeometry, BufferGeometry } from 'three'
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
+import { BufferGeometry, Float32BufferAttribute } from 'three'
 
-/** Cadeira simplificada para a visão geral (assento + encosto, ~20 triângulos). */
+/**
+ * Cadeira para a visão geral: só o assento e o encosto, quatro triângulos
+ * desenhados dos dois lados. São 60 mil cadeiras, então cada triângulo conta.
+ */
 export function createSeatGeometry(): BufferGeometry {
-  const pan = new BoxGeometry(0.44, 0.07, 0.42)
-  pan.translate(0, 0.44, 0.02)
-  const back = new BoxGeometry(0.44, 0.44, 0.05)
-  back.translate(0, 0.22, 0)
-  back.rotateX(-0.18)
-  back.translate(0, 0.46, -0.2)
-  const merged = mergeGeometries([pan, back])!
-  merged.deleteAttribute('uv')
-  return merged
+  const w = 0.22
+  // assento (y = 0,47) e encosto levemente inclinado para trás
+  const positions = [
+    -w, 0.47, -0.2, w, 0.47, -0.2, w, 0.47, 0.22, -w, 0.47, 0.22,
+    -w, 0.46, -0.2, w, 0.46, -0.2, w, 0.9, -0.28, -w, 0.9, -0.28,
+  ]
+  const g = new BufferGeometry()
+  g.setAttribute('position', new Float32BufferAttribute(positions, 3))
+  g.setIndex([0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7])
+  g.computeVertexNormals()
+  return g
 }

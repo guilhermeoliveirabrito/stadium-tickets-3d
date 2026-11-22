@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef } from 'react'
-import { Color, InstancedMesh, MeshStandardMaterial, Object3D } from 'three'
+import { Color, DoubleSide, InstancedMesh, MeshStandardMaterial, Object3D } from 'three'
 import { SEAT_COLORS } from '../../config/stadium'
 import { getLayout } from '../../lib/layout'
 import { mulberry32 } from '../../lib/random'
@@ -11,7 +11,7 @@ export function Seats() {
   const ref = useRef<InstancedMesh>(null)
   const geometry = useMemo(() => createSeatGeometry(), [])
   const material = useMemo(
-    () => withLocalFill(new MeshStandardMaterial({ roughness: 0.38, metalness: 0 }), 'seats', 1.15),
+    () => withLocalFill(new MeshStandardMaterial({ roughness: 0.38, metalness: 0, side: DoubleSide }), 'seats', 1.15),
     [],
   )
 

@@ -6,7 +6,7 @@ import {
   BufferGeometry,
   DataTexture,
   FloatType,
-  IcosahedronGeometry,
+  OctahedronGeometry,
   InstancedBufferAttribute,
   InstancedBufferGeometry,
   MeshStandardMaterial,
@@ -34,7 +34,7 @@ function createPersonGeometry() {
   return mergeGeometries([
     paint(new BoxGeometry(0.34, 0.84, 0.2).translate(0, 0.42, 0).toNonIndexed(), [0.11, 0.12, 0.16]),
     paint(new BoxGeometry(0.46, 0.62, 0.26).translate(0, 1.15, 0).toNonIndexed(), [1, 1, 1]),
-    paint(new IcosahedronGeometry(0.13, 0).translate(0, 1.6, 0.01), [0.93, 0.7, 0.56]),
+    paint(new OctahedronGeometry(0.14, 0).translate(0, 1.6, 0.01), [0.93, 0.7, 0.56]),
   ])!
 }
 

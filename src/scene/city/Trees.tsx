@@ -156,7 +156,8 @@ function Trunks({ trees }: { trees: TreeSpec[] }) {
   return <instancedMesh ref={ref} args={[geometry, material, trees.length]} />
 }
 
-const CHUNK = 350
+// blocos grandes: poucas chamadas de desenho, ainda com algum descarte fora da tela
+const CHUNK = 700
 
 /** Divide as árvores em blocos para o frustum culling descartar o que está fora da tela. */
 function chunked(trees: TreeSpec[]) {

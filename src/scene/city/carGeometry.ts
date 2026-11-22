@@ -16,9 +16,9 @@ function paint(g: BufferGeometry, color: [number, number, number] | ((ny: number
   return g
 }
 
-/** Carroceria: a cor vem da instância; vidros e pneus são escuros. */
+/** Carroceria: a cor vem da instância; os vidros são escuros. */
 export function createCarBody() {
-  const body = paint(new BoxGeometry(1.82, 0.6, 4.4).translate(0, 0.56, 0), [1, 1, 1])
+  const body = paint(new BoxGeometry(1.82, 0.72, 4.4).translate(0, 0.5, 0), [1, 1, 1])
 
   const cabin = new BoxGeometry(1.62, 0.52, 2.3)
   const pos = cabin.attributes.position
@@ -30,10 +30,8 @@ export function createCarBody() {
   // teto na cor do carro, laterais como vidro escuro
   paint(cabin, (ny) => (ny > 0.6 ? [1, 1, 1] : [0.05, 0.06, 0.07]))
 
-  const wheels = [-1, 1].flatMap((sx) =>
-    [-1, 1].map((sz) => paint(new BoxGeometry(0.26, 0.6, 0.6).translate(sx * 0.82, 0.3, sz * 1.38), [0.03, 0.03, 0.03])),
-  )
-  return mergeGeometries([body, cabin, ...wheels])!
+  // sem rodas: de cima elas não aparecem e seriam o dobro de triângulos
+  return mergeGeometries([body, cabin])!
 }
 
 /** Faróis (cor quente) e lanternas (vermelhas), em malhas separadas para a luz de freio. */
