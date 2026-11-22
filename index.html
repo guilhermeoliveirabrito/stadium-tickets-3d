@@ -7,8 +7,72 @@
     <meta name="theme-color" content="#0b0d12" />
     <meta name="description" content="Escolha seu lugar no estádio em 3D: setor, cadeira e a vista exata de onde você vai assistir." />
     <title>Tribuna · Arena Aurora</title>
+    <style>
+      .boot {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        gap: 22px;
+        background: radial-gradient(120% 90% at 50% 40%, #1a1d24 0%, #0b0d12 70%);
+        color: #fff;
+        font-family: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+        transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.9s;
+      }
+      .boot--done {
+        opacity: 0;
+        visibility: hidden;
+      }
+      .boot__mark {
+        width: 56px;
+        height: 56px;
+        animation: boot-pulse 1.8s ease-in-out infinite;
+      }
+      .boot__bar {
+        position: relative;
+        width: 160px;
+        height: 2px;
+        overflow: hidden;
+        border-radius: 2px;
+        background: rgba(255, 255, 255, 0.12);
+      }
+      .boot__bar::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        width: 40%;
+        border-radius: 2px;
+        background: #ff5a1f;
+        animation: boot-slide 1.2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+      }
+      .boot__label {
+        margin: 0;
+        font-size: 12px;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.55);
+      }
+      @keyframes boot-slide {
+        from { transform: translateX(-100%); }
+        to { transform: translateX(250%); }
+      }
+      @keyframes boot-pulse {
+        50% { transform: scale(0.94); opacity: 0.85; }
+      }
+    </style>
   </head>
   <body>
+    <div id="boot" class="boot" role="status">
+      <svg class="boot__mark" viewBox="0 0 64 64" aria-hidden="true">
+        <rect width="64" height="64" rx="16" fill="#ff5a1f" />
+        <path d="M14 40c4-10 12-16 18-16s14 6 18 16" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" />
+        <path d="M20 46h24" stroke="#fff" stroke-width="5" stroke-linecap="round" />
+      </svg>
+      <div class="boot__bar"></div>
+      <p class="boot__label">Preparando o estádio</p>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
