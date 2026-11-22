@@ -1,5 +1,5 @@
 import { Color } from 'three'
-import { AISLE_WIDTH, BACK_WALL_THICKNESS, PARAPET_THICKNESS } from '../config/stadium'
+import { AISLE_WIDTH, BACK_WALL_THICKNESS, PARAPET_THICKNESS, SEAT_COLORS } from '../config/stadium'
 import { insetToS, SEGMENTS } from './bowl'
 import type { StadiumLayout, TierGeometry } from './layout'
 import { arcSamples, SweepBuilder, type ProfilePoint } from './sweep'
@@ -27,8 +27,7 @@ interface P {
 const COLORS: Record<Exclude<Kind, 'fascia'>, string> = {
   cap: '#d7d3cc',
   inner: '#8e8a83',
-  // concreto escuro sob as cadeiras: de longe, as frestas entre as cadeiras
-  // viram sombra em vez de listras claras (moiré)
+  // substituídos, bloco a bloco, por um tom escuro da cor média das cadeiras
   tread: '#4f4c48',
   riser: '#45423e',
   step: '#e4e1db',
@@ -75,6 +74,9 @@ function tierProfile(tier: TierGeometry, aisle: boolean): P[] {
 // faixa de LED nas bordas dos anéis superiores
 const RIBBON = new Color('#1a2cff').multiplyScalar(1.1)
 
+const TAKEN = new Color(SEAT_COLORS.taken)
+const AVAILABLE = new Color(SEAT_COLORS.available)
+
 function colored(points: P[], palette: Record<Kind, Color>, ribbon: boolean): ProfilePoint[] {
   return points.map((p) => ({
     d: p.d,
@@ -93,13 +95,23 @@ export function buildStandsGeometry(layout: StadiumLayout) {
       Object.entries({ ...COLORS, fascia: tier.spec.fascia }).map(([k, v]) => [k, new Color(v)]),
     ) as Record<Kind, Color>
     const ribbon = tier.spec.level > 1
-    const seatsProfile = colored(tierProfile(tier, false), palette, ribbon)
+    const seatsShape = tierProfile(tier, false)
     const aisleProfile = colored(tierProfile(tier, true), palette, ribbon)
 
     for (const block of layout.blocks) {
       if (block.tier !== tier.spec.id) continue
       const seg = SEGMENTS[block.segment]
       const { s0, s1 } = block
+      // O piso e o espelho dos degraus sob as cadeiras levam um tom escuro da
+      // cor média das cadeiras do bloco. De longe, as frestas entre cadeiras e
+      // fileiras (menores que um pixel) somem no meio delas em vez de virarem
+      // pontos e listras pretas que piscam com o movimento da câmera.
+      const average = TAKEN.clone().lerp(AVAILABLE, block.available / Math.max(1, block.seatCount))
+      const seatsProfile = colored(
+        seatsShape,
+        { ...palette, tread: average.clone().multiplyScalar(0.5), riser: average.clone().multiplyScalar(0.4) },
+        ribbon,
+      )
       builder.sweep(
         seatsProfile,
         seg,
