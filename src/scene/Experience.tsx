@@ -9,7 +9,7 @@ export function Experience() {
       shadows="percentage"
       dpr={[1, 2]}
       gl={{ antialias: true, powerPreference: 'high-performance', stencil: false }}
-      camera={{ fov: 35, near: 2, far: 9000, position: [0, 140, 90] }}
+      camera={{ fov: 35, near: 2, far: 9000, position: [-150, 120, 210] }}
     >
       <Atmosphere />
       <Stadium />
