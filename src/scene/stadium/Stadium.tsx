@@ -1,3 +1,4 @@
+import { useFrame } from '@react-three/fiber'
 import { AdBoards } from './AdBoards'
 import { Facade } from './Facade'
 import { Floodlights } from './Floodlights'
@@ -6,6 +7,14 @@ import { Roof } from './Roof'
 import { Seats } from './Seats'
 import { Skyboxes } from './Skyboxes'
 import { Stands } from './Stands'
+import { neonTime } from './neon'
+
+function NeonClock() {
+  useFrame((_, delta) => {
+    neonTime.value += delta
+  })
+  return null
+}
 
 export function Stadium() {
   return (
@@ -18,6 +27,7 @@ export function Stadium() {
       <Roof />
       <Facade />
       <Floodlights />
+      <NeonClock />
     </group>
   )
 }

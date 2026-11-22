@@ -52,7 +52,7 @@ void main() {
   float up = clamp(h, 0.0, 1.0);
 
   vec3 col = mix(uHorizon, uZenith, pow(up, 0.42));
-  col += uGlow * pow(1.0 - up, 10.0) * 0.9;
+  col += uGlow * pow(1.0 - up, 10.0) * 0.7;
   col = mix(col, uGround, smoothstep(0.0, -0.05, h));
 
   float cover = 0.0;
@@ -63,7 +63,7 @@ void main() {
   }
 
   float m = max(dot(dir, uMoonDir), 0.0);
-  float halo = pow(m, 24.0) * 0.12 + pow(m, 320.0) * 0.5;
+  float halo = pow(m, 36.0) * 0.06 + pow(m, 600.0) * 0.35;
 
   // nuvens escuras, iluminadas por baixo pela cidade e pela lua
   vec3 cloud = mix(uHorizon * 1.35, uGlow * 0.9, 0.35) + uMoonColor * halo * 0.6;
