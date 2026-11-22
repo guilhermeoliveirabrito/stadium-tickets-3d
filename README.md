@@ -13,9 +13,9 @@ Compra de ingressos em 3D para um estádio fictício, numa noite de final. A exp
 - Gramado feito em shader, com faixas de corte e as marcações oficiais (105 x 68 m)
 - Esplanada iluminada ligada ao estacionamento, uma via de acesso a partir da avenida e a cidade em volta, separada por jardins com palmeiras e um lago
 - Bairros com casas, quintais, piscinas e prédios com janelas acesas, duas vilinhas perto do complexo e um skyline ao fundo
-- Trânsito: carros na avenida e nos bairros, carros entrando no estacionamento, estacionando, dando ré e indo embora, todos com faróis e lanternas
+- Trânsito: carros na avenida e nos bairros, carros entrando no estacionamento pelas portarias, estacionando, desligando o motor, dando ré e indo embora, todos com faróis, lanternas e luz de freio
 - Cerca de 3 mil pessoas andando em volta do estádio, chegando pelos portões, vindo do estacionamento e passeando pelas calçadas
-- Abertura que contorna o estádio e termina na vista aérea
+- Abertura com fogos de artifício sobre o estádio, que contorna o complexo e termina na vista aérea
 - Tela de carregamento, dados da partida e painel de disponibilidade
 
 | Vista aérea | Estacionamento e avenida |
