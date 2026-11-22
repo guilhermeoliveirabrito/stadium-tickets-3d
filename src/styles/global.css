@@ -1,0 +1,64 @@
+:root {
+  --bg: #0b0d12;
+  --ink: #0f1115;
+  --ink-soft: #5b616e;
+  --paper: rgba(255, 255, 255, 0.82);
+  --paper-strong: rgba(255, 255, 255, 0.94);
+  --line: rgba(15, 17, 21, 0.08);
+  --accent: #ff5a1f;
+  --accent-deep: #e8430a;
+  --price: #e5383b;
+  --seat-red: #c8102e;
+  --seat-blue: #1d4ed8;
+  --radius-lg: 22px;
+  --radius-md: 14px;
+  --shadow-card: 0 18px 50px -12px rgba(8, 10, 16, 0.35), 0 2px 8px rgba(8, 10, 16, 0.08);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  font-family: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-feature-settings: 'ss01', 'cv11';
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border: 0;
+  background: none;
+  padding: 0;
+}
+
+.app {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.app__placeholder {
+  color: #fff;
+  font-size: 14px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
