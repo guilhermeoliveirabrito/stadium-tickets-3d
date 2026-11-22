@@ -58,7 +58,8 @@ export function Facade() {
       neon: createNeonMaterial('facade', 3.4),
       podiumNeon: createNeonMaterial('podium', 2.6, 0),
       // faixa de LED na aresta externa de cada brise
-      stripGeometry: new BoxGeometry(0.18, stripHeight, 0.08).translate(0, 2.2 + stripHeight / 2, -1.24),
+      // faixa larga o bastante para não sumir e reaparecer entre os pixels de longe
+      stripGeometry: new BoxGeometry(0.46, stripHeight, 0.08).translate(0, 2.2 + stripHeight / 2, -1.24),
       stone: withSurfaceNoise(new MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }), 'podium', 0.15),
       finMaterial: new MeshStandardMaterial({ color: '#efede8', roughness: 0.5, metalness: 0.05 }),
       fins: pointsAlong(fins, 3.3),

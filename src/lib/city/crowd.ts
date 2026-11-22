@@ -167,9 +167,9 @@ function pathSpecs(city: CityLayout, rand: Random): PathSpec[] {
   return specs
 }
 
-export function buildCrowd(city: CityLayout): CrowdPlan {
+export function buildCrowd(city: CityLayout, density = 1): CrowdPlan {
   const rand = mulberry32(1974)
-  const specs = pathSpecs(city, rand)
+  const specs = pathSpecs(city, rand).map((spec) => ({ ...spec, people: Math.max(1, Math.round(spec.people * density)) }))
   const pathCount = specs.length
   const paths = new Float32Array(PATH_SAMPLES * pathCount * 4)
   const count = specs.reduce((n, s) => n + s.people, 0)

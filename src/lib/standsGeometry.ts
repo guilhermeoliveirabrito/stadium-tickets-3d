@@ -27,8 +27,10 @@ interface P {
 const COLORS: Record<Exclude<Kind, 'fascia'>, string> = {
   cap: '#d7d3cc',
   inner: '#8e8a83',
-  tread: '#9e9a92',
-  riser: '#7f7b74',
+  // concreto escuro sob as cadeiras: de longe, as frestas entre as cadeiras
+  // viram sombra em vez de listras claras (moiré)
+  tread: '#4f4c48',
+  riser: '#45423e',
   step: '#e4e1db',
   stepRiser: '#c3bfb8',
   back: '#34373d',

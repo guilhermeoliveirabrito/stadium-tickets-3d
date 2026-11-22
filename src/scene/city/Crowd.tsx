@@ -14,6 +14,7 @@ import {
   RGBAFormat,
 } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
+import { CROWD_DENSITY } from '../../config/quality'
 import { buildCrowd, PATH_SAMPLES } from '../../lib/city/crowd'
 import { getCity } from '../../lib/city/layout'
 import { addCityLight } from './cityLight'
@@ -115,7 +116,7 @@ function createCrowdMaterial(paths: DataTexture) {
 
 export function Crowd() {
   const { geometry, material } = useMemo(() => {
-    const plan = buildCrowd(getCity())
+    const plan = buildCrowd(getCity(), CROWD_DENSITY)
     const paths = new DataTexture(plan.paths, PATH_SAMPLES, plan.pathCount, RGBAFormat, FloatType)
     paths.magFilter = paths.minFilter = NearestFilter
     paths.needsUpdate = true

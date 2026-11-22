@@ -1,4 +1,5 @@
 import type { Material, Texture, WebGLProgramParametersWithUniforms } from 'three'
+import { LIGHT_MAP_SIZE } from '../../config/quality'
 import { getCity, HALF, WORLD } from '../../lib/city/layout'
 import { canvasTexture } from '../../lib/textures'
 import { FLASH_HEADER, flashTerm, flashUniforms } from '../lighting'
@@ -10,7 +11,7 @@ let lightMap: Texture | null = null
 export function getCityLightMap() {
   if (!lightMap) {
     const city = getCity()
-    lightMap = canvasTexture(2048, 2048, (ctx, size) => drawLightMap(ctx, size, city), { anisotropy: 4 })
+    lightMap = canvasTexture(LIGHT_MAP_SIZE, LIGHT_MAP_SIZE, (ctx, size) => drawLightMap(ctx, size, city), { anisotropy: 4 })
     lightMap.channel = 0
   }
   return lightMap

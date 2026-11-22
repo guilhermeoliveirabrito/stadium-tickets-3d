@@ -1,6 +1,7 @@
 import { PerformanceMonitor } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { MAX_TIER, pixelRatioFor, START_TIER, type Tier, TIER_LOCKED, TIER_ORDER } from '../config/quality'
 import { NIGHT } from '../config/world'
 import { Atmosphere } from './Atmosphere'
 import { CameraRig } from './CameraRig'
@@ -12,11 +13,28 @@ import { Stadium } from './stadium/Stadium'
 
 const devCamera = import.meta.env.DEV && new URLSearchParams(window.location.search).has('cam')
 
-const maxDpr = Math.min(2, window.devicePixelRatio || 1)
+function step(tier: Tier, delta: number): Tier {
+  const index = TIER_ORDER.indexOf(tier) + delta
+  const max = TIER_ORDER.indexOf(MAX_TIER)
+  return TIER_ORDER[Math.max(0, Math.min(max, index))]
+}
+
+/** Resolução do canvas a partir do nível de qualidade e do tamanho da janela. */
+function usePixelRatio(tier: Tier) {
+  const [dpr, setDpr] = useState(() => pixelRatioFor(tier, window.innerWidth, window.innerHeight))
+  useEffect(() => {
+    const update = () => setDpr(pixelRatioFor(tier, window.innerWidth, window.innerHeight))
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [tier])
+  return dpr
+}
 
 export function Experience() {
-  // começa em 1,5x e cai para 1x se a máquina não aguentar a cena
-  const [dpr, setDpr] = useState(Math.min(1.5, maxDpr))
+  // começa num nível conforme o aparelho e se ajusta ao FPS medido
+  const [tier, setTier] = useState<Tier>(START_TIER)
+  const dpr = usePixelRatio(tier)
 
   return (
     <Canvas
@@ -28,12 +46,18 @@ export function Experience() {
       }}
       camera={{ fov: 35, near: 4, far: 9000, position: [0, 470, 120] }}
     >
-      <PerformanceMonitor onDecline={() => setDpr(1)} onIncline={() => setDpr(maxDpr)} flipflops={3} />
+      {!TIER_LOCKED && (
+        <PerformanceMonitor
+          onDecline={() => setTier((t) => step(t, -1))}
+          onIncline={() => setTier((t) => step(t, 1))}
+          flipflops={4}
+        />
+      )}
       <Atmosphere />
       {devCamera ? <DevCamera /> : <CameraRig />}
       <Stadium />
       <City />
-      <PostFX />
+      <PostFX tier={tier} />
       <ReadySignal skipIntro={devCamera} />
     </Canvas>
   )
