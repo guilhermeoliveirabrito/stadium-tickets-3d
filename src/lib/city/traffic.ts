@@ -305,24 +305,29 @@ function lotRoutes(city: CityLayout, { rand, add }: RouteKit) {
   const lot = city.lot
   const av = city.avenue.points
   const westbound = rightOf([...av].reverse(), TURN_LANE)
-  const accessNorth = rightOf(city.access.points, ROAD_LANE)
-  const accessSouth = rightOf([...city.access.points].reverse(), ROAD_LANE)
-  const exitNorth = rightOf(city.exit.points, ROAD_LANE)
-  const exitSouth = rightOf([...city.exit.points].reverse(), ROAD_LANE)
+  const access = resample(city.access.points, 4)
+  const exit = resample(city.exit.points, 4)
+  const accessNorth = rightOf(access, ROAD_LANE)
+  const accessSouth = rightOf([...access].reverse(), ROAD_LANE)
+  const exitNorth = rightOf(exit, ROAD_LANE)
+  const exitSouth = rightOf([...exit].reverse(), ROAD_LANE)
   const junctionX = city.access.points[0][0]
   const offAvenue = (p: Vec2) => Math.abs(p[1] - avenueZ(p[0])) > AVENUE_WIDTH / 2 - 1
   const streetEnd: Vec2 = [-270, -HALF - 20]
   const streetNorth = rightOf([[-270, -300], streetEnd], ROAD_LANE)
   const streetSouth = rightOf([streetEnd, [-270, -300]], ROAD_LANE)
 
-  const free = lot.stalls.filter((s) => !s.occupied)
+  // vagas livres na metade leste do estacionamento, que aparece inteira na
+  // vista aérea (o canto sudoeste fica atrás do painel da interface)
+  const visible = (s: { x: number; z: number }) => s.x > lot.x0 + (lot.x1 - lot.x0) * 0.42 && s.z < lot.z1 - 40
+  const free = lot.stalls.filter((s) => !s.occupied && visible(s))
   const pick = () => free.splice(Math.floor(rand() * free.length), 1)[0]
   const aisleOf = (x: number) => lot.aisles.reduce((best, a) => (Math.abs(a - x) < Math.abs(best - x) ? a : best), lot.aisles[0])
   /** faixa de circulação: a direita do sentido de marcha (oeste → norte, leste → sul) */
   const laneZ = (base: number, fromX: number, toX: number) => base + (toX < fromX ? -LOT_LANE : LOT_LANE)
 
   // Entra pela avenida, estaciona, dá ré e sai pelo norte para os bairros.
-  for (let k = 0; k < 6; k++) {
+  for (let k = 0; k < 8; k++) {
     const stall = pick()
     if (!stall) break
     const laneX = aisleOf(stall.x) + LOT_LANE
@@ -355,7 +360,7 @@ function lotRoutes(city: CityLayout, { rand, add }: RouteKit) {
   }
 
   // Chega pelo bairro ao norte, estaciona e sai pela via de acesso para a avenida.
-  for (let k = 0; k < 4; k++) {
+  for (let k = 0; k < 7; k++) {
     const stall = pick()
     if (!stall) break
     const laneX = aisleOf(stall.x) - LOT_LANE

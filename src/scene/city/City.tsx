@@ -3,6 +3,7 @@ import { getCity } from '../../lib/city/layout'
 import { Buildings } from './Buildings'
 import { Crowd } from './Crowd'
 import { Ground } from './Ground'
+import { LotGates } from './LotGates'
 import { StreetLights } from './StreetLights'
 import { Traffic } from './Traffic'
 import { Trees } from './Trees'
@@ -14,6 +15,7 @@ export function City() {
       <Ground city={city} />
       <Buildings buildings={city.buildings} />
       <StreetLights lamps={city.lamps} />
+      <LotGates lot={city.lot} />
       <Trees trees={city.trees} />
       <Traffic />
       <Crowd />

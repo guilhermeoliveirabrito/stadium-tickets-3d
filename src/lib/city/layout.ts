@@ -163,7 +163,8 @@ export interface CityLayout {
 /** pátio que liga a esplanada ao estacionamento */
 export const FORECOURT: Rect = { x0: -206, x1: -140, z0: -112, z1: 112 }
 
-const LOT_SPEC = { x0: -398, x1: -206, nearZ: 150, farZ: -150, gate: -302 }
+// as duas portarias ficam no lado leste, colado ao pátio, que aparece na vista aérea
+const LOT_SPEC = { x0: -398, x1: -206, nearZ: 150, farZ: -150, gate: -212 }
 const LOT_RECT: Rect = { x0: LOT_SPEC.x0, x1: LOT_SPEC.x1, z0: LOT_SPEC.farZ, z1: LOT_SPEC.nearZ }
 
 export const PARK: Rect = { x0: 200, z0: -112, x1: 330, z1: 128 }
@@ -260,26 +261,25 @@ function segmentOk(a: Vec2, b: Vec2, check = streetPointOk) {
 function buildRoads() {
   const avenue: Road = { kind: 'avenue', width: AVENUE_WIDTH, points: AVENUE_POINTS }
   const gateX = LOT_SPEC.gate
+  // portaria sul: via curta e reta até a avenida
   const access: Road = {
     kind: 'access',
     width: ACCESS_WIDTH,
-    points: smoothPath([
-      [gateX - 26, avenueZ(gateX - 26)],
-      [gateX - 18, avenueZ(gateX - 18) - 24],
-      [gateX - 4, LOT_SPEC.nearZ + 30],
-      [gateX, LOT_SPEC.nearZ + 4],
+    points: [
+      [gateX, avenueZ(gateX)],
       [gateX, LOT_SPEC.nearZ - 4],
-    ]),
+    ],
   }
+  // portaria norte: sobe e faz uma curva até o bairro
   const exit: Road = {
     kind: 'access',
     width: ACCESS_WIDTH,
     points: smoothPath([
       [gateX, LOT_SPEC.farZ + 4],
-      [gateX, LOT_SPEC.farZ - 6],
-      [gateX + 2, -196],
-      [-282, -250],
-      [-270, -284],
+      [gateX, LOT_SPEC.farZ - 16],
+      [gateX - 4, -200],
+      [-236, -252],
+      [-262, -284],
       [-270, -300],
     ]),
   }

@@ -144,27 +144,6 @@ export function drawGround(ctx: Ctx, size: number, city: CityLayout) {
   ctx.lineWidth = 1 * S
   ctx.stroke()
 
-  // estacionamento colado ao pátio
-  const lot = city.lot
-  ctx.fillStyle = '#383b40'
-  ctx.fillRect(px(lot.x0), px(lot.z0), (lot.x1 - lot.x0) * S, (lot.z1 - lot.z0) * S)
-  ctx.strokeStyle = '#8c8984'
-  ctx.lineWidth = 1.2 * S
-  ctx.strokeRect(px(lot.x0), px(lot.z0), (lot.x1 - lot.x0) * S, (lot.z1 - lot.z0) * S)
-  ctx.strokeStyle = 'rgba(236, 236, 228, 0.42)'
-  ctx.lineWidth = Math.max(1, 0.13 * S)
-  ctx.beginPath()
-  for (const s of lot.stalls) {
-    for (const dz of [-1.3, 1.3]) {
-      ctx.moveTo(px(s.x - 2.5), px(s.z + dz))
-      ctx.lineTo(px(s.x + 2.5), px(s.z + dz))
-    }
-  }
-  ctx.stroke()
-  // passarelas de pedestres do estacionamento até o pátio
-  ctx.fillStyle = 'rgba(214, 206, 190, 0.9)'
-  for (let z = -90; z <= 90; z += 60) ctx.fillRect(px(lot.x1 - 30), px(z - 2), 30 * S, 4 * S)
-
   // entradas das casas e piscinas
   ctx.fillStyle = '#9c988f'
   for (const p of city.porches) {
@@ -196,6 +175,27 @@ export function drawGround(ctx: Ctx, size: number, city: CityLayout) {
     ctx.stroke()
   }
   for (const t of city.turnarounds) disk(t.x, t.z, t.r + SIDEWALK, '#8e8b85')
+  // estacionamento colado ao pátio (depois das calçadas, para cobrir as das portarias)
+  const lot = city.lot
+  ctx.fillStyle = '#383b40'
+  ctx.fillRect(px(lot.x0), px(lot.z0), (lot.x1 - lot.x0) * S, (lot.z1 - lot.z0) * S)
+  ctx.strokeStyle = '#8c8984'
+  ctx.lineWidth = 1.2 * S
+  ctx.strokeRect(px(lot.x0), px(lot.z0), (lot.x1 - lot.x0) * S, (lot.z1 - lot.z0) * S)
+  ctx.strokeStyle = 'rgba(236, 236, 228, 0.42)'
+  ctx.lineWidth = Math.max(1, 0.13 * S)
+  ctx.beginPath()
+  for (const s of lot.stalls) {
+    for (const dz of [-1.3, 1.3]) {
+      ctx.moveTo(px(s.x - 2.5), px(s.z + dz))
+      ctx.lineTo(px(s.x + 2.5), px(s.z + dz))
+    }
+  }
+  ctx.stroke()
+  // passarelas de pedestres do estacionamento até o pátio
+  ctx.fillStyle = 'rgba(214, 206, 190, 0.9)'
+  for (let z = -90; z <= 90; z += 60) ctx.fillRect(px(lot.x1 - 30), px(z - 2), 30 * S, 4 * S)
+
   ctx.strokeStyle = '#2f3237'
   for (const road of city.roads) {
     ctx.lineWidth = road.width * S
@@ -329,6 +329,8 @@ export function drawLightMap(ctx: Ctx, size: number, city: CityLayout) {
     }
   }
   for (const p of city.porches) if (p.lit) glow(p.x, p.z, 5, '#ffaa55', 0.55)
+  // luz das coberturas das portarias
+  for (const z of [city.lot.nearZ + 5, city.lot.farZ - 5]) glow(city.lot.gate, z, 14, '#eef3ff', 0.85)
   for (const pool of city.pools) glow(pool.x, pool.z, 6, '#3fd4ff', 0.75)
 
   // neon da fachada refletido na esplanada e luz quente do saguão
