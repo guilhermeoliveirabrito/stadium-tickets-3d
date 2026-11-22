@@ -48,6 +48,7 @@ Para gerar a versão de produção: `npm run build` (o resultado fica em `dist/`
 Parâmetros úteis na URL:
 
 - `?intro=0` pula a abertura
+- `?q=low`, `?q=medium` ou `?q=high` força um nível de qualidade
 - `?cam=x,y,z,alvoX,alvoY,alvoZ` (só em desenvolvimento) libera uma câmera livre para inspecionar a cena
 
 ## Stack
@@ -70,7 +71,11 @@ React 19, TypeScript e Vite. A cena usa Three.js com React Three Fiber e drei, o
 
 **Pedestres.** Os caminhos (voltas pela esplanada, portões, pátio, calçadas) ficam guardados numa textura. Cada pessoa tem só um caminho, uma velocidade e uma defasagem, e o vertex shader calcula posição, rumo e o balanço do passo. No processador, apenas um relógio é atualizado por quadro. Ver `src/lib/city/crowd.ts` e `src/scene/city/Crowd.tsx`.
 
-**Desempenho.** Cadeiras, carros, pessoas, árvores, casas e postes são instanciados; o mapa de sombras é renderizado só nos primeiros quadros; a resolução cai sozinha quando a máquina não acompanha.
+**Desempenho.**
+- Cadeiras, carros, pessoas, árvores, casas e postes são instanciados, e a cena fica em torno de 800 mil triângulos por quadro.
+- Os refletores e o clarão dos fogos são calculados dentro dos materiais que recebem essa luz, então a cena só tem duas luzes reais (luar e ambiente) e nenhum mapa de sombra.
+- Os shaders são compilados em paralelo antes do primeiro quadro (`compileAsync`).
+- Há três níveis de qualidade (`src/config/quality.ts`). O nível inicial depende do aparelho: baixo no celular e em máquinas fracas, médio no PC. Depois ele sobe ou desce conforme o FPS medido. Cada nível define um orçamento de pixels para o canvas, o antisserrilhado (MSAA ou SMAA), a oclusão de ambiente, o bloom, o tamanho das texturas do chão e a quantidade de pessoas.
 
 ## Estrutura
 
