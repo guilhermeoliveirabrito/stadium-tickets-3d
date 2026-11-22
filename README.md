@@ -12,8 +12,9 @@ Compra de ingressos em 3D para um estádio fictício, numa noite de final. A exp
 - Noite de jogo: refletores na cobertura, fachada e cobertura com faixas de LED animadas, céu estrelado com lua
 - Gramado feito em shader, com faixas de corte e as marcações oficiais (105 x 68 m)
 - Esplanada iluminada ligada ao estacionamento, uma via de acesso a partir da avenida e a cidade em volta, separada por jardins com palmeiras e um lago
-- Bairros com casas, quintais, piscinas e prédios com janelas acesas, e um skyline ao fundo
+- Bairros com casas, quintais, piscinas e prédios com janelas acesas, duas vilinhas perto do complexo e um skyline ao fundo
 - Trânsito: carros na avenida e nos bairros, carros entrando no estacionamento, estacionando, dando ré e indo embora, todos com faróis e lanternas
+- Cerca de 3 mil pessoas andando em volta do estádio, chegando pelos portões, vindo do estacionamento e passeando pelas calçadas
 - Abertura que contorna o estádio e termina na vista aérea
 - Tela de carregamento, dados da partida e painel de disponibilidade
 
@@ -21,9 +22,11 @@ Compra de ingressos em 3D para um estádio fictício, numa noite de final. A exp
 | --- | --- |
 | ![Vista aérea](docs/vista-aerea.jpg) | ![Estacionamento e avenida](docs/estacionamento.jpg) |
 
-| Arquibancada norte | Celular |
+| Torcida na esplanada | Arquibancada norte |
 | --- | --- |
-| ![Arquibancada norte](docs/arquibancada.jpg) | ![Versão para celular](docs/mobile.jpg) |
+| ![Torcida na esplanada](docs/torcida.jpg) | ![Arquibancada norte](docs/arquibancada.jpg) |
+
+<p align="center"><img src="docs/mobile.jpg" alt="Versão para celular" width="260" /></p>
 
 ## Roadmap
 
@@ -65,7 +68,9 @@ React 19, TypeScript e Vite. A cena usa Three.js com React Three Fiber e drei, o
 
 **Trânsito.** Cada rota vira uma trajetória cronometrada, com aceleração, frenagem, redução nas curvas e paradas (uma vaga, uma ré). Os carros só leem essa tabela com uma defasagem de tempo, então não há simulação a cada quadro. Ver `src/lib/city/traffic.ts`.
 
-**Desempenho.** Cadeiras, carros, árvores, casas e postes são instanciados; o mapa de sombras é renderizado só nos primeiros quadros; a resolução cai sozinha quando a máquina não acompanha.
+**Pedestres.** Os caminhos (voltas pela esplanada, portões, pátio, calçadas) ficam guardados numa textura. Cada pessoa tem só um caminho, uma velocidade e uma defasagem, e o vertex shader calcula posição, rumo e o balanço do passo. No processador, apenas um relógio é atualizado por quadro. Ver `src/lib/city/crowd.ts` e `src/scene/city/Crowd.tsx`.
+
+**Desempenho.** Cadeiras, carros, pessoas, árvores, casas e postes são instanciados; o mapa de sombras é renderizado só nos primeiros quadros; a resolução cai sozinha quando a máquina não acompanha.
 
 ## Estrutura
 
