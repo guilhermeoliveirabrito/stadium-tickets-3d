@@ -75,6 +75,7 @@ React 19, TypeScript e Vite. A cena usa Three.js com React Three Fiber e drei, o
 - Cadeiras, carros, pessoas, árvores, casas e postes são instanciados, e a cena fica em torno de 800 mil triângulos por quadro.
 - Os refletores e o clarão dos fogos são calculados dentro dos materiais que recebem essa luz, então a cena só tem duas luzes reais (luar e ambiente) e nenhum mapa de sombra.
 - Os shaders são compilados em paralelo antes do primeiro quadro (`compileAsync`).
+- Nada de importante fica menor que um ou dois pixels, para não piscar sem MSAA: as luzes pequenas (postes, refletores, faróis) são sprites com tamanho mínimo e brilho que conserva energia, as pessoas crescem um pouco quando estão longe, e as cadeiras ocupam a célula inteira e misturam a cor com as vizinhas (ver `src/scene/pixelScale.ts`).
 - Há três níveis de qualidade (`src/config/quality.ts`). O nível inicial depende do aparelho: baixo no celular e em máquinas fracas, médio no PC. Depois ele sobe ou desce conforme o FPS medido. Cada nível define um orçamento de pixels para o canvas, o antisserrilhado (MSAA ou SMAA), a oclusão de ambiente, o bloom, o tamanho das texturas do chão e a quantidade de pessoas.
 
 ## Estrutura
