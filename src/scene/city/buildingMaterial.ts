@@ -1,4 +1,5 @@
 import { MeshStandardMaterial } from 'three'
+import { addCityLight } from './cityLight'
 
 const vertexHeader = /* glsl */ `
 attribute vec4 aBuilding;
@@ -97,6 +98,7 @@ export function createBuildingMaterial(glow = 2.4) {
   const material = new MeshStandardMaterial({ roughness: 0.82, metalness: 0.02 })
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uWindowGlow = { value: glow }
+    addCityLight(shader, { strength: 1.2, falloff: 4 })
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>\n${vertexHeader}`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>\n${vertexBody}`)

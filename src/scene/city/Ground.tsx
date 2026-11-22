@@ -3,13 +3,13 @@ import { MeshStandardMaterial, PlaneGeometry, Shape, ShapeGeometry } from 'three
 import { type CityLayout, WORLD } from '../../lib/city/layout'
 import { canvasTexture } from '../../lib/textures'
 import { withSurfaceNoise } from '../stadium/materials'
-import { drawGround, drawLightMap, FAR_GROUND } from './groundTexture'
+import { getCityLightMap } from './cityLight'
+import { drawGround, FAR_GROUND } from './groundTexture'
 
 export function Ground({ city }: { city: CityLayout }) {
   const parts = useMemo(() => {
     const map = canvasTexture(4096, 4096, (ctx, size) => drawGround(ctx, size, city), { anisotropy: 16 })
-    const lightMap = canvasTexture(2048, 2048, (ctx, size) => drawLightMap(ctx, size, city), { anisotropy: 4 })
-    lightMap.channel = 0
+    const lightMap = getCityLightMap()
     const lake = new Shape()
     city.lake.forEach(([x, z], i) => (i ? lake.lineTo(x, -z) : lake.moveTo(x, -z)))
     return {

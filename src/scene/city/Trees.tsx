@@ -13,6 +13,7 @@ import {
 } from 'three'
 import { mergeGeometries, mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { TreeSpec } from '../../lib/city/layout'
+import { withCityLight } from './cityLight'
 import { mulberry32, valueNoise } from '../../lib/random'
 
 function lumpy(geometry: BufferGeometry, seed: number, amount = 0.2) {
@@ -179,7 +180,10 @@ export function Trees({ trees }: { trees: TreeSpec[] }) {
     return {
       variants,
       chunks,
-      material: new MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0 }),
+      material: withCityLight(new MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0 }), 'trees', {
+        strength: 1.4,
+        falloff: 7,
+      }),
     }
   }, [trees])
 
