@@ -17,6 +17,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { CROWD_DENSITY } from '../../config/quality'
 import { buildCrowd, PATH_SAMPLES } from '../../lib/city/crowd'
 import { getCity } from '../../lib/city/layout'
+import { pixelUniforms } from '../pixelScale'
 import { addCityLight } from './cityLight'
 
 const crowdTime = { value: 0 }
@@ -42,6 +43,7 @@ function createPersonGeometry() {
 const vertexHeader = /* glsl */ `
 uniform sampler2D uCrowdPaths;
 uniform float uCrowdTime;
+uniform float uPixelAngle;
 attribute vec4 aWalk;
 attribute vec4 aLook;
 attribute vec3 aShirt;
@@ -88,6 +90,7 @@ function createCrowdMaterial(paths: DataTexture) {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uCrowdPaths = { value: paths }
     shader.uniforms.uCrowdTime = crowdTime
+    Object.assign(shader.uniforms, pixelUniforms)
     addCityLight(shader, { strength: 2.4, falloff: 3 })
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>\n${vertexHeader}`)
@@ -107,6 +110,11 @@ function createCrowdMaterial(paths: DataTexture) {
         '#include <begin_vertex>',
         `#include <begin_vertex>
         vec3 crowdLocal = position * vec3(1.0, aLook.y, 1.0);
+        // de longe a pessoa (0,46 m) fica menor que um pixel e some e reaparece;
+        // ela cresce na horizontal para ocupar pelo menos ~1,8 pixel
+        vec4 crowdView = viewMatrix * vec4(gWalkPos.x, 0.9, gWalkPos.y, 1.0);
+        float crowdPixel = max(-crowdView.z, 0.0) * uPixelAngle;
+        crowdLocal.xz *= clamp(1.8 * crowdPixel / 0.46, 1.0, 3.5);
         transformed = ${rotate('crowdLocal')} + vec3(gWalkPos.x, gWalkBob, gWalkPos.y);`,
       )
   }
