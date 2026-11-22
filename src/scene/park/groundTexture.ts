@@ -1,5 +1,5 @@
 import { BOWL } from '../../config/stadium'
-import { LAKE, PARK_SIZE, PATHS, PLAZA_D, SHADOW, type TreeSpec } from '../../lib/park'
+import { bowlDistance, LAKE, PARK_SIZE, PATHS, PLAZA_D, RING_ROAD_D, SHADOW, type TreeSpec } from '../../lib/park'
 import { fbm } from '../../lib/random'
 
 export const FAR_GROUND = '#5c7a37'
@@ -112,19 +112,29 @@ export function drawGround(ctx: CanvasRenderingContext2D, size: number, trees: T
     ctx.lineWidth = p.width * S
     strokePath(p.points, !!p.closed)
   }
-  for (const p of PATHS.filter((p) => p.kind === 'road')) {
-    ctx.strokeStyle = '#d9d4c6'
+  // Cada camada é desenhada para todas as vias antes da próxima (calçada,
+  // asfalto, faixas). Assim o asfalto de uma via cobre a calçada da outra e
+  // os cruzamentos ficam contínuos.
+  const roads = PATHS.filter((p) => p.kind === 'road')
+  ctx.strokeStyle = '#d9d4c6'
+  for (const p of roads) {
     ctx.lineWidth = (p.width + 3) * S
     strokePath(p.points, !!p.closed)
-    ctx.strokeStyle = '#4b4f55'
+  }
+  ctx.strokeStyle = '#4b4f55'
+  for (const p of roads) {
     ctx.lineWidth = p.width * S
     strokePath(p.points, !!p.closed)
-    ctx.strokeStyle = 'rgba(236, 232, 220, 0.85)'
-    ctx.lineWidth = 0.25 * S
-    ctx.setLineDash([5 * S, 6 * S])
-    strokePath(p.points, !!p.closed)
-    ctx.setLineDash([])
   }
+  ctx.strokeStyle = 'rgba(236, 232, 220, 0.85)'
+  ctx.lineWidth = 0.25 * S
+  ctx.setLineDash([5 * S, 6 * S])
+  for (const p of roads) {
+    // a faixa central das saídas só começa depois do cruzamento com o anel
+    const points = p.closed ? p.points : p.points.filter(([x, z]) => Math.abs(bowlDistance(x, z) - RING_ROAD_D) > 14)
+    strokePath(points, !!p.closed)
+  }
+  ctx.setLineDash([])
 
   // sombras das árvores (pré-calculadas na direção do sol)
   const sprite = shadowSprite()
