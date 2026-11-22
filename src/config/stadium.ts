@@ -109,3 +109,32 @@ export const SEAT = {
   setback: 0.34,
   margin: 0.06,
 }
+
+export const SKYBOX = {
+  front: 20.6,
+  floor: 11.0,
+  ceiling: 15.2,
+  back: 27.6,
+  width: 8,
+  /** fileiras de poltronas: [d, altura do piso] */
+  rows: [
+    [21.3, 11.0],
+    [22.5, 11.35],
+    [23.7, 11.7],
+  ] as [number, number][],
+  chairsPerRow: 9,
+}
+
+export const ROOF = {
+  inner: 42,
+  outer: 57.5,
+  innerY: 50.4,
+  outerY: 47.8,
+  thickness: 1.5,
+}
+
+export const FACADE = {
+  wall: 52.2,
+  fins: 54.6,
+  top: 47.4,
+}

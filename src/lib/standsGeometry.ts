@@ -1,7 +1,8 @@
-import { BufferGeometry, Color, Float32BufferAttribute, Uint32BufferAttribute } from 'three'
+import { Color } from 'three'
 import { AISLE_WIDTH, BACK_WALL_THICKNESS, PARAPET_THICKNESS } from '../config/stadium'
-import { frameAt, insetToS, SEGMENTS, type Segment } from './bowl'
+import { insetToS, SEGMENTS } from './bowl'
 import type { StadiumLayout, TierGeometry } from './layout'
+import { arcSamples, SweepBuilder, type ProfilePoint } from './sweep'
 
 type Kind =
   | 'fascia'
@@ -69,85 +70,20 @@ function tierProfile(tier: TierGeometry, aisle: boolean): P[] {
   return pts
 }
 
-class Builder {
-  position: number[] = []
-  normal: number[] = []
-  color: number[] = []
-  block: number[] = []
-  index: number[] = []
-  private frame = frameAt(SEGMENTS[0], 0, 0)
-
-  /**
-   * Varre o perfil ao longo do segmento. `range(d)` devolve o intervalo [s0, s1]
-   * ocupado na curva de distância d.
-   */
-  sweep(
-    profile: P[],
-    seg: Segment,
-    range: (d: number) => [number, number],
-    samples: number,
-    blockIndex: number,
-    palette: Record<Kind, Color>,
-  ) {
-    const f = this.frame
-    for (let e = 0; e < profile.length; e++) {
-      const a = profile[e]
-      const b = profile[(e + 1) % profile.length]
-      const ed = b.d - a.d
-      const ey = b.y - a.y
-      const len = Math.hypot(ed, ey)
-      if (len < 1e-5) continue
-      const nd = -ey / len
-      const ny = ed / len
-      const c = palette[a.kind]
-      const base = this.position.length / 3
-
-      for (let k = 0; k <= samples; k++) {
-        for (const p of [a, b]) {
-          const [s0, s1] = range(p.d)
-          frameAt(seg, s0 + ((s1 - s0) * k) / samples, p.d, f)
-          this.position.push(f.x, p.y, f.z)
-          this.normal.push(f.nx * nd, ny, f.nz * nd)
-          this.color.push(c.r, c.g, c.b)
-          this.block.push(blockIndex)
-        }
-      }
-      for (let k = 0; k < samples; k++) {
-        const i = base + k * 2
-        this.index.push(i, i + 3, i + 1, i, i + 2, i + 3)
-      }
-    }
-  }
-
-  build() {
-    const g = new BufferGeometry()
-    g.setAttribute('position', new Float32BufferAttribute(this.position, 3))
-    g.setAttribute('normal', new Float32BufferAttribute(this.normal, 3))
-    g.setAttribute('color', new Float32BufferAttribute(this.color, 3))
-    g.setAttribute('aBlock', new Float32BufferAttribute(this.block, 1))
-    g.setIndex(new Uint32BufferAttribute(this.index, 1))
-    g.computeBoundingSphere()
-    return g
-  }
-}
-
-const ARC_STEP = (2.5 * Math.PI) / 180
-
-function samplesFor(seg: Segment, span: number) {
-  if (seg.kind === 'line') return 1
-  return Math.max(1, Math.ceil((span * seg.sweep) / ARC_STEP))
+function colored(points: P[], palette: Record<Kind, Color>): ProfilePoint[] {
+  return points.map((p) => ({ d: p.d, y: p.y, color: palette[p.kind] }))
 }
 
 export function buildStandsGeometry(layout: StadiumLayout) {
-  const builder = new Builder()
+  const builder = new SweepBuilder()
   const half = AISLE_WIDTH / 2
 
   for (const tier of layout.tiers) {
     const palette = Object.fromEntries(
       Object.entries({ ...COLORS, fascia: tier.spec.fascia }).map(([k, v]) => [k, new Color(v)]),
     ) as Record<Kind, Color>
-    const seatsProfile = tierProfile(tier, false)
-    const aisleProfile = tierProfile(tier, true)
+    const seatsProfile = colored(tierProfile(tier, false), palette)
+    const aisleProfile = colored(tierProfile(tier, true), palette)
 
     for (const block of layout.blocks) {
       if (block.tier !== tier.spec.id) continue
@@ -157,9 +93,8 @@ export function buildStandsGeometry(layout: StadiumLayout) {
         seatsProfile,
         seg,
         (d) => [s0 + insetToS(seg, half, d), s1 - insetToS(seg, half, d)],
-        samplesFor(seg, s1 - s0),
+        arcSamples(seg, s1 - s0),
         block.index,
-        palette,
       )
       // corredor no início do bloco (metade em cada segmento nas junções)
       const startsSegment = s0 === 0
@@ -168,11 +103,9 @@ export function buildStandsGeometry(layout: StadiumLayout) {
         seg,
         (d) => [startsSegment ? s0 : s0 - insetToS(seg, half, d), s0 + insetToS(seg, half, d)],
         1,
-        -1,
-        palette,
       )
       if (s1 === 1) {
-        builder.sweep(aisleProfile, seg, (d) => [s1 - insetToS(seg, half, d), s1], 1, -1, palette)
+        builder.sweep(aisleProfile, seg, (d) => [s1 - insetToS(seg, half, d), s1], 1)
       }
     }
   }

@@ -1,5 +1,6 @@
 import { Canvas } from '@react-three/fiber'
 import { Atmosphere } from './Atmosphere'
+import { DevCamera } from './DevCamera'
 import { Stadium } from './stadium/Stadium'
 
 export function Experience() {
@@ -12,6 +13,7 @@ export function Experience() {
       camera={{ fov: 35, near: 2, far: 9000, position: [-150, 120, 210] }}
     >
       <Atmosphere />
+      {import.meta.env.DEV && <DevCamera />}
       <Stadium />
       <mesh rotation-x={-Math.PI / 2} position-y={-0.05} receiveShadow>
         <planeGeometry args={[3000, 3000]} />
