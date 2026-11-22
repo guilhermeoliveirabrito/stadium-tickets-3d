@@ -1,6 +1,6 @@
 import { PerformanceMonitor } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { MAX_TIER, pixelRatioFor, START_TIER, type Tier, TIER_LOCKED, TIER_ORDER } from '../config/quality'
 import { NIGHT } from '../config/world'
 import { Atmosphere } from './Atmosphere'
@@ -8,6 +8,7 @@ import { CameraRig } from './CameraRig'
 import { DevCamera } from './DevCamera'
 import { City } from './city/City'
 import { PostFX } from './PostFX'
+import { Precompile } from './Precompile'
 import { ReadySignal } from './ReadySignal'
 import { Stadium } from './stadium/Stadium'
 
@@ -35,10 +36,18 @@ export function Experience() {
   // começa num nível conforme o aparelho e se ajusta ao FPS medido
   const [tier, setTier] = useState<Tier>(START_TIER)
   const dpr = usePixelRatio(tier)
+  // só começa a desenhar depois que os shaders estiverem compilados
+  const [compiled, setCompiled] = useState(false)
+  const onCompiled = useCallback(() => setCompiled(true), [])
+
+  useEffect(() => {
+    document.documentElement.dataset.quality = tier
+  }, [tier])
 
   return (
     <Canvas
       className="experience"
+      frameloop={compiled ? 'always' : 'never'}
       dpr={dpr}
       gl={{ antialias: false, powerPreference: 'high-performance', stencil: false }}
       onCreated={({ gl }) => {
@@ -59,6 +68,7 @@ export function Experience() {
       <City />
       <PostFX tier={tier} />
       <ReadySignal skipIntro={devCamera} />
+      {!compiled && <Precompile onDone={onCompiled} />}
     </Canvas>
   )
 }

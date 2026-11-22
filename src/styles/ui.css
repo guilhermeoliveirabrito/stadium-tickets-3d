@@ -9,8 +9,15 @@
   background: var(--paper);
   border: 1px solid rgba(255, 255, 255, 0.65);
   box-shadow: var(--shadow-card);
-  -webkit-backdrop-filter: blur(18px) saturate(1.7);
-  backdrop-filter: blur(18px) saturate(1.7);
+  -webkit-backdrop-filter: blur(14px) saturate(1.6);
+  backdrop-filter: blur(14px) saturate(1.6);
+}
+
+/* no nível baixo o desfoque (refeito a cada quadro sobre o 3D) dá lugar a um fundo mais opaco */
+:root[data-quality='low'] .glass {
+  background: var(--paper-strong);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 /* barra superior ---------------------------------------------------------- */
@@ -259,7 +266,7 @@
   padding: 11px 16px 11px 20px;
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 999px;
-  background: rgba(12, 14, 20, 0.32);
+  background: rgba(12, 14, 20, 0.42);
   color: #fff;
   font-size: 13px;
   font-weight: 600;
