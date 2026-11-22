@@ -158,7 +158,7 @@ export function Pitch() {
 
   return (
     <group>
-      <mesh geometry={geometry} material={material} rotation-x={-Math.PI / 2} receiveShadow />
+      <mesh geometry={geometry} material={material} rotation-x={-Math.PI / 2} position-y={0.05} receiveShadow />
       <Goal side={1} />
       <Goal side={-1} />
       {[
