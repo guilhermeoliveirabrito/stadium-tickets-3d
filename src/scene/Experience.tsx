@@ -28,7 +28,7 @@ export function Experience() {
       <Park />
       <StaticShadows />
       <PostFX />
-      <ReadySignal />
+      <ReadySignal skipIntro={devCamera} />
     </Canvas>
   )
 }

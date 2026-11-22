@@ -2,9 +2,10 @@ import { Vector3 } from 'three'
 
 const deg = Math.PI / 180
 
-// Sol vindo de nordeste, fim de tarde (hemisfério sul).
-const sunElevation = 48 * deg
-const sunAzimuth = 38 * deg
+// Sol de sul-sudoeste: ilumina de frente a arquibancada norte, onde ficam os
+// blocos centrais, e projeta a sombra da cobertura sobre parte do gramado.
+const sunElevation = 44 * deg
+const sunAzimuth = 202 * deg
 
 export const SUN_DIRECTION = new Vector3(
   Math.cos(sunElevation) * Math.sin(sunAzimuth),

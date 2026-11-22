@@ -11,7 +11,7 @@ export function Atmosphere() {
     <>
       <GradientSky />
 
-      <Environment resolution={256} frames={1} environmentIntensity={0.36}>
+      <Environment resolution={256} frames={1} environmentIntensity={0.42}>
         <GradientSky radius={400} animated={false} clouds={0.6} />
         {/* metade de baixo do mapa: grama e concreto refletindo luz */}
         <mesh position-y={-210} scale={[400, 200, 400]}>
@@ -20,7 +20,7 @@ export function Atmosphere() {
         </mesh>
       </Environment>
 
-      <hemisphereLight args={['#dce8ff', '#4f5a36', 0.16]} />
+      <hemisphereLight args={['#dce8ff', '#4f5a36', 0.2]} />
 
       <directionalLight
         position={lightPosition}

@@ -10,9 +10,9 @@ export interface Pose {
   fov: number
 }
 
-// começa do lado nordeste, com o sol às costas da câmera, e contorna até o sul
-export const INTRO_START: Pose = { az: 2.5, el: 0.085, dist: 400, tx: 0, ty: 22, tz: 0, fov: 40 }
-export const INTRO_SWEEP: Partial<Pose> = { az: 0.5, el: 0.27, dist: 340, ty: 8 }
+// começa a oeste-sudoeste, com a fachada iluminada, e contorna pelo sul
+export const INTRO_START: Pose = { az: -1.05, el: 0.085, dist: 400, tx: 0, ty: 22, tz: 0, fov: 40 }
+export const INTRO_SWEEP: Partial<Pose> = { az: 0.55, el: 0.27, dist: 340, ty: 8 }
 
 /** Vista de cima, enquadrando o estádio e um pouco do parque em qualquer proporção de tela. */
 export function aerialPose(aspect: number): Pose {
