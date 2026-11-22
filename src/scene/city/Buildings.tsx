@@ -15,6 +15,7 @@ import {
 import type { Building } from '../../lib/city/layout'
 import { mulberry32 } from '../../lib/random'
 import { createBuildingMaterial } from './buildingMaterial'
+import { withCityLight } from './cityLight'
 
 const KIND_INDEX = { house: 0, apartment: 1, tower: 2 } as const
 const ROOF_COLORS = ['#8a4a35', '#7a4030', '#3d4045', '#5b4636', '#6e3b2c']
@@ -61,7 +62,7 @@ export function Buildings({ buildings }: { buildings: Building[] }) {
       material: createBuildingMaterial(),
       gables,
       roof: createGableGeometry(),
-      roofMaterial: new MeshStandardMaterial({ roughness: 0.85 }),
+      roofMaterial: withCityLight(new MeshStandardMaterial({ roughness: 0.85 }), 'roofs', { strength: 1.5, falloff: 9 }),
       tall,
       beacon: new SphereGeometry(0.9, 8, 6),
       beaconMaterial: new MeshBasicMaterial({ color: new Color('#ff2a1a').multiplyScalar(6) }),

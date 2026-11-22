@@ -182,6 +182,12 @@ export function drawGround(ctx: Ctx, size: number, city: CityLayout) {
 
   // Cada camada é desenhada para todas as vias antes da próxima (calçada,
   // asfalto, faixas), assim os cruzamentos ficam contínuos.
+  const disk = (x: number, z: number, r: number, color: string) => {
+    ctx.fillStyle = color
+    ctx.beginPath()
+    ctx.arc(px(x), px(z), r * S, 0, Math.PI * 2)
+    ctx.fill()
+  }
   ctx.lineCap = 'square'
   ctx.strokeStyle = '#8e8b85'
   for (const road of city.roads) {
@@ -189,12 +195,14 @@ export function drawGround(ctx: Ctx, size: number, city: CityLayout) {
     polyPath(ctx, road.points, !!road.closed, px)
     ctx.stroke()
   }
+  for (const t of city.turnarounds) disk(t.x, t.z, t.r + SIDEWALK, '#8e8b85')
   ctx.strokeStyle = '#2f3237'
   for (const road of city.roads) {
     ctx.lineWidth = road.width * S
     polyPath(ctx, road.points, !!road.closed, px)
     ctx.stroke()
   }
+  for (const t of city.turnarounds) disk(t.x, t.z, t.r, '#2f3237')
 
   ctx.lineCap = 'butt'
   const line = (pts: Vec2[], closed: boolean, color: string, width: number, dash: number[] = []) => {
@@ -221,6 +229,8 @@ export function drawGround(ctx: Ctx, size: number, city: CityLayout) {
     }
   }
   ctx.setLineDash([])
+  // o retorno da rua sem saída fica sem faixa
+  for (const t of city.turnarounds) disk(t.x, t.z, t.r, '#2f3237')
 
   // cruzamentos: apaga as faixas e desenha as faixas de pedestre
   for (const it of city.intersections) {
@@ -309,7 +319,9 @@ export function drawLightMap(ctx: Ctx, size: number, city: CityLayout) {
 
   for (const b of city.buildings) {
     if (b.kind === 'tower') continue
-    glow(b.x, b.z, Math.max(b.w, b.d) * 0.85, '#ff9a4d', b.kind === 'house' ? 0.12 : 0.16)
+    // as vilinhas têm luz de quintal acesa, para aparecerem na vista de cima
+    if (b.village) glow(b.x, b.z, Math.max(b.w, b.d) * 1.15, '#ffa45c', 0.3)
+    else glow(b.x, b.z, Math.max(b.w, b.d) * 0.85, '#ff9a4d', b.kind === 'house' ? 0.12 : 0.16)
     if (b.shops) {
       const fx = b.x - Math.sin(b.yaw) * (b.d / 2 + 3)
       const fz = b.z - Math.cos(b.yaw) * (b.d / 2 + 3)

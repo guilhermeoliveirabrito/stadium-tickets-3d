@@ -39,6 +39,14 @@ export interface Road {
   width: number
   points: Vec2[]
   closed?: boolean
+  /** rua das vilinhas perto do complexo (só casas pequenas) */
+  village?: boolean
+}
+
+export interface Turnaround {
+  x: number
+  z: number
+  r: number
 }
 
 export interface Intersection {
@@ -88,6 +96,8 @@ export interface Building {
   gable: boolean
   /** lojas acesas no térreo */
   shops: boolean
+  /** casa das vilinhas perto do complexo */
+  village?: boolean
 }
 
 export type LampKind = 'street' | 'lot' | 'plaza' | 'park'
@@ -134,6 +144,7 @@ export interface CityLayout {
   access: Road
   exit: Road
   intersections: Intersection[]
+  turnarounds: Turnaround[]
   lot: ParkingLot
   forecourt: Rect
   buildings: Building[]
@@ -167,6 +178,16 @@ const LAKE: Vec2[] = (() => {
   }
   return out
 })()
+
+/**
+ * Duas vilinhas de casas baixas nos cantos que aparecem na vista aérea,
+ * ainda separadas da esplanada pelos jardins.
+ */
+const VILLAGES: Rect[] = [
+  { x0: 135, x1: 292, z0: -190, z1: -126 },
+  { x0: 100, x1: 245, z0: 130, z1: 216 },
+]
+const CUL_DE_SAC: Turnaround = { x: 158, z: -155, r: 8 }
 
 /** área reservada ao complexo (estádio, esplanada, estacionamento e parque) */
 function complexZone(x: number, z: number, margin = 0) {
@@ -271,8 +292,8 @@ function buildRoads() {
     node.count++
     nodes.set(k, node)
   }
-  const addStreet = (a: Vec2, b: Vec2) => {
-    roads.push({ kind: 'street', width: STREET_WIDTH, points: [a, b] })
+  const addStreet = (a: Vec2, b: Vec2, village = false) => {
+    roads.push({ kind: 'street', width: STREET_WIDTH, points: [a, b], village })
     touch(a[0], a[1])
     touch(b[0], b[1])
   }
@@ -308,6 +329,25 @@ function buildRoads() {
     }
   }
 
+  // ruas das vilinhas: uma sem saída a nordeste e um "U" saindo da avenida a sudeste
+  const hasStreet = (a: Vec2, b: Vec2) =>
+    roads.some(
+      (r) =>
+        r.kind === 'street' &&
+        ((r.points[0][0] === a[0] && r.points[0][1] === a[1] && r.points[1][0] === b[0] && r.points[1][1] === b[1]) ||
+          (r.points[0][0] === b[0] && r.points[0][1] === b[1] && r.points[1][0] === a[0] && r.points[1][1] === a[1])),
+    )
+  const edgeZ = (x: number) => avenueZ(x) - (AVENUE_WIDTH / 2 - 0.5)
+  const villageStreets: [Vec2, Vec2][] = [
+    [[270, -230], [270, -155]],
+    [[270, -155], [CUL_DE_SAC.x, CUL_DE_SAC.z]],
+    [[125, edgeZ(125)], [125, 150]],
+    [[125, 150], [215, 150]],
+    [[215, 150], [215, edgeZ(215)]],
+  ]
+  for (const [a, b] of villageStreets) if (!hasStreet(a, b)) addStreet(a, b, true)
+  avenueJunctions.push([125, avenueZ(125)], [215, avenueZ(215)])
+
   const streetHalf = STREET_WIDTH / 2
   const avenueHalf = AVENUE_WIDTH / 2
   const intersections: Intersection[] = [
@@ -317,7 +357,7 @@ function buildRoads() {
   for (const n of nodes.values()) {
     if (n.count >= 2) intersections.push({ x: n.x, z: n.z, hx: streetHalf, hz: streetHalf, crosswalk: false })
   }
-  return { roads, avenue, access, exit, intersections }
+  return { roads, avenue, access, exit, intersections, turnarounds: [CUL_DE_SAC] }
 }
 
 /** Índice dos segmentos de via para medir distâncias rapidamente. */
@@ -424,7 +464,13 @@ function placeBuildings(rand: Random, roads: Road[], clearance: (x: number, z: n
     if (Math.abs(x) > EDGE - r || Math.abs(z) > EDGE - r) return false
     // do outro lado da avenida os prédios podem ficar de frente para o complexo
     const acrossAvenue = z - r > avenueZ(x) + AVENUE_WIDTH / 2
-    if (acrossAvenue ? inRect(x, z, LOT_RECT, 40 + r) : complexZone(x, z, r - 10)) return false
+    const inVillage = VILLAGES.some((v) => inRect(x, z, v))
+    if (inVillage) {
+      if (bowlDistance(x, z) < PLAZA_D + 38 + r || inRect(x, z, PARK, 4 + r)) return false
+      if (Math.hypot(x - CUL_DE_SAC.x, z - CUL_DE_SAC.z) < CUL_DE_SAC.r + SIDEWALK + r) return false
+    } else if (acrossAvenue ? inRect(x, z, LOT_RECT, 40 + r) : complexZone(x, z, r - 10)) {
+      return false
+    }
     const c = Math.cos(yaw)
     const s = Math.sin(yaw)
     for (const [lx, lz] of [
@@ -461,7 +507,15 @@ function placeBuildings(rand: Random, roads: Road[], clearance: (x: number, z: n
       const nz = tx * side
       let t = avenue ? 2 : 13
       while (t < len - (avenue ? 2 : 13)) {
-        const kind: BuildingKind = avenue ? (rand() < 0.8 ? 'apartment' : 'house') : rand() < 0.1 ? 'apartment' : 'house'
+        const kind: BuildingKind = road.village
+          ? 'house'
+          : avenue
+            ? rand() < 0.8
+              ? 'apartment'
+              : 'house'
+            : rand() < 0.1
+              ? 'apartment'
+              : 'house'
         let w: number
         let d: number
         let h: number
@@ -472,6 +526,13 @@ function placeBuildings(rand: Random, roads: Road[], clearance: (x: number, z: n
           const floors = avenue ? 4 + Math.floor(rand() * 9) : 3 + Math.floor(rand() * 3)
           h = floors * 3.1 + 0.8
           setback = 3 + rand() * 2
+        } else if (road.village) {
+          // casinhas térreas ou de dois andares
+          w = 7 + rand() * 3
+          d = 8 + rand() * 3
+          const floors = rand() < 0.55 ? 1 : 2
+          h = floors * 3.0 + 0.4
+          setback = 4 + rand() * 2
         } else {
           w = 8 + rand() * 4
           d = 9 + rand() * 4
@@ -499,6 +560,7 @@ function placeBuildings(rand: Random, roads: Road[], clearance: (x: number, z: n
             seed: rand(),
             gable: kind === 'house' && rand() < 0.88,
             shops: kind === 'apartment' && avenue && rand() < 0.8,
+            village: road.village,
           })
           if (kind === 'house') {
             const fx = x - nx * (d / 2)
@@ -715,7 +777,7 @@ function plantTrees(rand: Random, lot: ParkingLot, clearance: (x: number, z: num
 
 export function buildCity(): CityLayout {
   const rand = mulberry32(2026)
-  const { roads, avenue, access, exit, intersections } = buildRoads()
+  const { roads, avenue, access, exit, intersections, turnarounds } = buildRoads()
   const lot = buildLot(rand)
   const walks: Road[] = [
     // calçadões que atravessam os jardins até a avenida, os bairros e o lago
@@ -746,6 +808,7 @@ export function buildCity(): CityLayout {
     access,
     exit,
     intersections,
+    turnarounds,
     lot,
     forecourt: FORECOURT,
     buildings,

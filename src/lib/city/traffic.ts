@@ -467,6 +467,65 @@ function neighborhoodRoutes(city: CityLayout, { rand, add }: RouteKit) {
   }
 }
 
+/** Separa o caminho em: trecho na avenida, trecho fora dela e (se houver) volta para a avenida. */
+function splitByAvenue(points: Vec2[]): Vec2[][] {
+  const off = (p: Vec2) => Math.abs(p[1] - avenueZ(p[0])) > AVENUE_WIDTH / 2 + 1
+  const first = points.findIndex(off)
+  let last = -1
+  for (let i = points.length - 1; i >= 0; i--) {
+    if (off(points[i])) {
+      last = i
+      break
+    }
+  }
+  if (first <= 0 || last < 0) return [points]
+  const parts = [points.slice(0, first + 1), points.slice(first, last + 1)]
+  if (last < points.length - 1) parts.push(points.slice(last))
+  return parts
+}
+
+function villageRoutes(city: CityLayout, { add }: RouteKit) {
+  const av = city.avenue.points
+  const westbound = rightOf([...av].reverse(), TURN_LANE)
+  const offAvenue = (p: Vec2) => Math.abs(p[1] - avenueZ(p[0])) > AVENUE_WIDTH / 2 - 1
+
+  // "U" a sudeste: entra pela avenida em x = 215, contorna e volta em x = 125
+  const loop = rightOf(
+    resample(
+      [
+        [215, avenueZ(215)],
+        [215, 150],
+        [125, 150],
+        [125, avenueZ(125)],
+      ],
+      6,
+    ),
+    ROAD_LANE,
+  ).filter(offAvenue)
+  const uRoute = smooth(join(sliceByX(westbound, HALF + 60, 223), loop, sliceByX(westbound, 117, -HALF - 60)))
+  const [inA, village, outA] = splitByAvenue(uRoute)
+  if (village && outA) {
+    add(
+      [
+        { points: inA, speed: TURN_SPEED },
+        { points: village, speed: 7 },
+        { points: outA, speed: TURN_SPEED },
+      ],
+      2,
+    )
+  }
+
+  // rua sem saída a nordeste: desce pela x = 270, contorna o retorno e sobe de volta
+  const t = city.turnarounds[0]
+  if (!t) return
+  const down = rightOf(resample([[270, -HALF - 20], [270, -155], [t.x + 2, t.z]], 6), ROAD_LANE)
+  const turn: Vec2[] = []
+  const radius = t.r - 2.4
+  for (let a = -Math.PI / 2; a >= -Math.PI * 2.15; a -= 0.2) turn.push([t.x + Math.cos(a) * radius, t.z + Math.sin(a) * radius])
+  const up = rightOf(resample([[t.x + 2, t.z], [270, -155], [270, -HALF - 20]], 6), ROAD_LANE)
+  add([{ points: smooth(join(down.slice(0, -1), turn, up.slice(1))), speed: 7 }], 1)
+}
+
 function parkedCars(lot: ParkingLot, rand: Random): ParkedCar[] {
   return lot.stalls.filter((s) => s.occupied).map((s) => ({ x: s.x, z: s.z, yaw: s.yaw, color: carColor(rand) }))
 }
@@ -489,5 +548,6 @@ export function buildTraffic(city: CityLayout): TrafficPlan {
   avenueRoutes(city, kit)
   lotRoutes(city, kit)
   neighborhoodRoutes(city, kit)
+  villageRoutes(city, kit)
   return { tracks, cars, parked: parkedCars(city.lot, rand) }
 }

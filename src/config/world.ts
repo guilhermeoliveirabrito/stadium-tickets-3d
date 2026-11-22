@@ -20,8 +20,8 @@ export const NIGHT = {
   glow: '#3b2c4d',
   ground: '#05070b',
   moon: '#dfe7ff',
-  moonlight: { color: '#9fb6ff', intensity: 0.42 },
-  hemisphere: { sky: '#1b2a52', ground: '#0a0c10', intensity: 0.32 },
+  moonlight: { color: '#9fb6ff', intensity: 0.58 },
+  hemisphere: { sky: '#1b2a52', ground: '#0a0c10', intensity: 0.38 },
   environmentIntensity: 0.55,
   exposure: 1.05,
 }

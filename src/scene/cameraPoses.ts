@@ -19,7 +19,7 @@ export const INTRO_SWEEP: Partial<Pose> = { az: 0.45, el: 0.28, dist: 360, tx: -
 export function aerialPose(aspect: number): Pose {
   const fov = 32
   const t = Math.tan(MathUtils.degToRad(fov / 2))
-  const dist = Math.max(186 / t, 160 / (t * aspect))
+  const dist = Math.max(202 / t, 160 / (t * aspect))
   // em telas largas a câmera vai um pouco para oeste, para o estacionamento
   // aparecer ao lado do estádio; em telas estreitas fica centrada no estádio
   const shift = Math.min(1, Math.max(0, (aspect - 0.8) / 0.4))
