@@ -59,7 +59,7 @@ export const TIERS: TierSpec[] = [
     backTop: 11.0,
     backBottom: 0,
     underside: [],
-    blocks: { long: 7, short: 4, corner: 3 },
+    blocks: { long: 7, short: 4, corner: 4 },
     fascia: '#2a2e35',
   },
   {

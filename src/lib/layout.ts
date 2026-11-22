@@ -114,7 +114,7 @@ export function buildLayout(): StadiumLayout {
         const rand = mulberry32(number * 7919)
         // procura maior no centro das laterais e no anel intermediário
         const centrality = seg.kind === 'line' ? 1 - Math.abs((s0 + s1) / 2 - 0.5) * 1.6 : 0.25
-        const demand = 0.74 + centrality * 0.14 + (spec.level === 2 ? 0.05 : 0) + (rand() - 0.5) * 0.08
+        const demand = 0.62 + centrality * 0.1 + (spec.level === 2 ? 0.03 : 0) + (rand() - 0.5) * 0.08
 
         const block: Block = {
           index,
