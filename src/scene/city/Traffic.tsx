@@ -2,6 +2,7 @@ import { useFrame } from '@react-three/fiber'
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import {
   AdditiveBlending,
+  BufferAttribute,
   Color,
   DynamicDrawUsage,
   InstancedMesh,
@@ -12,26 +13,21 @@ import {
 } from 'three'
 import { getCity } from '../../lib/city/layout'
 import { buildTraffic, sampleTrack } from '../../lib/city/traffic'
-import {
-  createBeamGeometry,
-  createCarBody,
-  createHeadlights,
-  createTailGlowGeometry,
-  createTaillights,
-  getBeamTexture,
-} from './carGeometry'
+import { createGlowGeometry, createGlowMaterial } from '../glowMaterial'
+import { createBeamGeometry, createCarBody, createTailGlowGeometry, getBeamTexture } from './carGeometry'
 import { withCityLight } from './cityLight'
 
-const BRAKE = new Color(2.4, 2.4, 2.4)
-const CRUISE = new Color(1, 1, 1)
+const HEAD = new Color('#fff0d8')
+const TAIL = new Color('#ff1a0d')
+/** lanterna com o freio acionado */
+const BRAKE_BOOST = 2.3
 
 export function Traffic() {
   const plan = useMemo(() => buildTraffic(getCity()), [])
+  const carCount = plan.cars.length
   const parts = useMemo(
     () => ({
       body: createCarBody(),
-      heads: createHeadlights(),
-      tails: createTaillights(),
       beam: createBeamGeometry(),
       glow: createTailGlowGeometry(),
       paint: withCityLight(
@@ -39,8 +35,12 @@ export function Traffic() {
         'cars',
         { strength: 2.4, falloff: 3 },
       ),
-      headMaterial: new MeshBasicMaterial({ vertexColors: true, color: new Color(6, 6, 6) }),
-      tailMaterial: new MeshBasicMaterial({ vertexColors: true, color: new Color(3.2, 3.2, 3.2) }),
+      // faróis e lanternas como brilhos: nunca menores que 2 pixels, então não
+      // piscam de longe (antes eram caixinhas finas e muito brilhantes)
+      heads: createGlowGeometry(new Float32Array(carCount * 3), new Float32Array(carCount * 3)),
+      tails: createGlowGeometry(new Float32Array(carCount * 3), new Float32Array(carCount * 3)),
+      headMaterial: createGlowMaterial(1.9, 5, 2.2),
+      tailMaterial: createGlowMaterial(1.3, 3.2, 2),
       beamMaterial: new MeshBasicMaterial({
         map: getBeamTexture(),
         color: new Color(1, 0.84, 0.6).multiplyScalar(0.32),
@@ -56,12 +56,10 @@ export function Traffic() {
         depthWrite: false,
       }),
     }),
-    [],
+    [carCount],
   )
 
   const bodies = useRef<InstancedMesh>(null)
-  const heads = useRef<InstancedMesh>(null)
-  const tails = useRef<InstancedMesh>(null)
   const beams = useRef<InstancedMesh>(null)
   const glows = useRef<InstancedMesh>(null)
   const parked = useRef<InstancedMesh>(null)
@@ -71,10 +69,12 @@ export function Traffic() {
     const color = new Color()
     plan.cars.forEach((car, i) => {
       bodies.current!.setColorAt(i, color.set(car.color))
-      tails.current!.setColorAt(i, CRUISE)
     })
-    for (const mesh of [bodies.current, heads.current, tails.current, beams.current, glows.current]) {
+    for (const mesh of [bodies.current, beams.current, glows.current]) {
       mesh!.instanceMatrix.setUsage(DynamicDrawUsage)
+    }
+    for (const g of [parts.heads, parts.tails]) {
+      for (const name of ['position', 'aColor']) (g.getAttribute(name) as BufferAttribute).setUsage(DynamicDrawUsage)
     }
     const dummy = new Object3D()
     plan.parked.forEach((car, i) => {
@@ -87,7 +87,7 @@ export function Traffic() {
     parked.current!.instanceMatrix.needsUpdate = true
     parked.current!.instanceColor!.needsUpdate = true
     parked.current!.computeBoundingSphere()
-  }, [plan])
+  }, [plan, parts])
 
   const scratch = useRef({
     dummy: new Object3D(),
@@ -98,8 +98,11 @@ export function Traffic() {
   useFrame((_, delta) => {
     clock.current += Math.min(delta, 0.1)
     const { dummy, hidden, sample } = scratch.current
-    const lights = [heads.current!, tails.current!, beams.current!, glows.current!]
-    const meshes = [bodies.current!, ...lights]
+    const pools = [beams.current!, glows.current!]
+    const headPos = parts.heads.getAttribute('position') as BufferAttribute
+    const headColor = parts.heads.getAttribute('aColor') as BufferAttribute
+    const tailPos = parts.tails.getAttribute('position') as BufferAttribute
+    const tailColor = parts.tails.getAttribute('aColor') as BufferAttribute
     plan.cars.forEach((car, i) => {
       sampleTrack(plan.tracks[car.track], clock.current + car.offset, sample)
       dummy.position.set(sample.x, 0, sample.z)
@@ -107,19 +110,27 @@ export function Traffic() {
       dummy.updateMatrix()
       bodies.current!.setMatrixAt(i, dummy.matrix)
       // estacionado com o motor desligado: faróis, lanternas e manchas apagam
-      for (const mesh of lights) mesh.setMatrixAt(i, sample.lights ? dummy.matrix : hidden)
-      tails.current!.setColorAt(i, sample.braking ? BRAKE : CRUISE)
+      for (const mesh of pools) mesh.setMatrixAt(i, sample.lights ? dummy.matrix : hidden)
+      const sx = Math.sin(sample.heading)
+      const sz = Math.cos(sample.heading)
+      headPos.setXYZ(i, sample.x + sx * 2.3, 0.72, sample.z + sz * 2.3)
+      tailPos.setXYZ(i, sample.x - sx * 2.3, 0.78, sample.z - sz * 2.3)
+      const on = sample.lights ? 1 : 0
+      const brake = sample.braking ? BRAKE_BOOST : 1
+      headColor.setXYZ(i, HEAD.r * on, HEAD.g * on, HEAD.b * on)
+      tailColor.setXYZ(i, TAIL.r * on * brake, TAIL.g * on * brake, TAIL.b * on * brake)
     })
-    for (const mesh of meshes) mesh.instanceMatrix.needsUpdate = true
-    tails.current!.instanceColor!.needsUpdate = true
+    bodies.current!.instanceMatrix.needsUpdate = true
+    for (const mesh of pools) mesh.instanceMatrix.needsUpdate = true
+    for (const attr of [headPos, headColor, tailPos, tailColor]) attr.needsUpdate = true
   })
 
   const count = plan.cars.length
   return (
     <group>
       <instancedMesh ref={bodies} args={[parts.body, parts.paint, count]} frustumCulled={false} />
-      <instancedMesh ref={heads} args={[parts.heads, parts.headMaterial, count]} frustumCulled={false} />
-      <instancedMesh ref={tails} args={[parts.tails, parts.tailMaterial, count]} frustumCulled={false} />
+      <points geometry={parts.heads} material={parts.headMaterial} frustumCulled={false} renderOrder={2} />
+      <points geometry={parts.tails} material={parts.tailMaterial} frustumCulled={false} renderOrder={2} />
       <instancedMesh ref={beams} args={[parts.beam, parts.beamMaterial, count]} frustumCulled={false} renderOrder={1} />
       <instancedMesh ref={glows} args={[parts.glow, parts.glowMaterial, count]} frustumCulled={false} renderOrder={1} />
       <instancedMesh ref={parked} args={[parts.body, parts.paint, plan.parked.length]} />

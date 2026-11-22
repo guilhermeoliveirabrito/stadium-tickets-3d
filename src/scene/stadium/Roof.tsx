@@ -4,6 +4,7 @@ import { ROOF } from '../../config/stadium'
 import { pointsAlong, profile, SweepBuilder } from '../../lib/sweep'
 import { FrameInstances } from './FrameInstances'
 import { withSurfaceNoise } from './materials'
+import { GlowSprites } from '../GlowSprites'
 import { createNeonMaterial } from './neon'
 
 const span = ROOF.outer - ROOF.inner
@@ -42,7 +43,7 @@ export function Roof() {
       .around(
         profile([
           [inner + 0.15, topAt(inner + 0.15), '#ffffff'],
-          [inner + 0.9, topAt(inner + 0.9), '#ffffff'],
+          [inner + 1.6, topAt(inner + 1.6), '#ffffff'],
         ]),
         undefined,
         false,
@@ -55,7 +56,8 @@ export function Roof() {
       rim,
       innerRing,
       rimMaterial: createNeonMaterial('roof-rim', 3.6),
-      innerRingMaterial: new MeshBasicMaterial({ color: new Color('#dfe8ff').multiplyScalar(2.4) }),
+      // anel mais largo (e um pouco menos intenso) para não serrilhar de longe
+      innerRingMaterial: new MeshBasicMaterial({ color: new Color('#dfe8ff').multiplyScalar(1.9) }),
       shellMaterial: withSurfaceNoise(
         new MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.05 }),
         'roof',
@@ -65,9 +67,11 @@ export function Roof() {
       lamp: new MeshStandardMaterial({
         color: '#d9dde3',
         emissive: '#f4f7ff',
-        emissiveIntensity: 7,
+        emissiveIntensity: 0.7,
         roughness: 0.3,
       }),
+      // brilho de cada refletor, logo abaixo da borda interna da cobertura
+      lampGlows: pointsAlong(inner + 0.6, 3.1).map((f) => [f.x, innerY - t - 0.8, f.z] as [number, number, number]),
       ribs: pointsAlong((inner + outer) / 2, 6.2),
       lamps: pointsAlong(inner + 0.8, 3.1),
       ribGeometry: new BoxGeometry(0.45, 1.5, span),
@@ -83,6 +87,7 @@ export function Roof() {
     <group>
       <mesh geometry={parts.shell} material={parts.shellMaterial} castShadow receiveShadow />
       <mesh geometry={parts.rim} material={parts.rimMaterial} />
+      <GlowSprites points={parts.lampGlows} color="#f2f5ff" size={2.4} intensity={6} />
       <mesh geometry={parts.innerRing} material={parts.innerRingMaterial} />
       <FrameInstances
         frames={parts.ribs}

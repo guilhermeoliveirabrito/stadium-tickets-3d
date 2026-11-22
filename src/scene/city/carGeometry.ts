@@ -34,19 +34,6 @@ export function createCarBody() {
   return mergeGeometries([body, cabin])!
 }
 
-/** Faróis (cor quente) e lanternas (vermelhas), em malhas separadas para a luz de freio. */
-export function createHeadlights() {
-  return mergeGeometries(
-    [-1, 1].map((sx) => paint(new BoxGeometry(0.36, 0.14, 0.05).translate(sx * 0.62, 0.7, 2.21), [1, 0.93, 0.8])),
-  )!
-}
-
-export function createTaillights() {
-  return mergeGeometries(
-    [-1, 1].map((sx) => paint(new BoxGeometry(0.34, 0.13, 0.05).translate(sx * 0.66, 0.76, -2.21), [1, 0.05, 0.03])),
-  )!
-}
-
 let beamTexture: CanvasTexture | null = null
 
 /** Mancha de luz que os faróis projetam no asfalto. */

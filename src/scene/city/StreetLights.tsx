@@ -13,6 +13,7 @@ import {
 } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { Lamp, LampKind } from '../../lib/city/layout'
+import { GlowSprites } from '../GlowSprites'
 
 interface Model {
   pole: BufferGeometry
@@ -53,6 +54,22 @@ function models(): Record<LampKind, Model> {
   return { street, lot, plaza, park }
 }
 
+type V3 = [number, number, number]
+
+/** Posição de cada lâmpada (onde o brilho fica), por tipo de poste. */
+function glowPoints(lamps: Lamp[]) {
+  const street: V3[] = []
+  const lot: V3[] = []
+  const small: V3[] = []
+  for (const l of lamps) {
+    if (l.kind === 'street') street.push([l.x + Math.sin(l.yaw) * 1.85, 7.74, l.z + Math.cos(l.yaw) * 1.85])
+    else if (l.kind === 'lot') lot.push([l.x - 1.3, 10.7, l.z], [l.x + 1.3, 10.7, l.z])
+    else if (l.kind === 'plaza') small.push([l.x, 4.55, l.z])
+    else small.push([l.x, 3.5, l.z])
+  }
+  return { street, lot, small }
+}
+
 function Instances({ lamps, geometry, material }: { lamps: Lamp[]; geometry: BufferGeometry; material: Material }) {
   const ref = useRef<InstancedMesh>(null)
   useLayoutEffect(() => {
@@ -77,13 +94,18 @@ export function StreetLights({ lamps }: { lamps: Lamp[] }) {
       models: models(),
       groups: (['street', 'lot', 'plaza', 'park'] as LampKind[]).map((kind) => ({ kind, lamps: byKind(kind) })),
       metal: new MeshStandardMaterial({ color: '#3a3e45', roughness: 0.55, metalness: 0.6 }),
-      warm: new MeshBasicMaterial({ color: new Color('#ffc58a').multiplyScalar(6) }),
-      cool: new MeshBasicMaterial({ color: new Color('#eef3ff').multiplyScalar(7) }),
+      // a luminária em si fica abaixo do limiar do bloom; o brilho vem dos sprites
+      warm: new MeshBasicMaterial({ color: new Color('#ffc58a').multiplyScalar(0.55) }),
+      cool: new MeshBasicMaterial({ color: new Color('#eef3ff').multiplyScalar(0.6) }),
+      glows: glowPoints(lamps),
     }
   }, [lamps])
 
   return (
     <group>
+      <GlowSprites points={parts.glows.street} color="#ffc27e" size={1.7} intensity={5} />
+      <GlowSprites points={parts.glows.lot} color="#eaf0ff" size={1.5} intensity={6} />
+      <GlowSprites points={parts.glows.small} color="#ffcf98" size={0.95} intensity={4.5} />
       {parts.groups.map(({ kind, lamps: list }) =>
         list.length ? (
           <group key={kind}>

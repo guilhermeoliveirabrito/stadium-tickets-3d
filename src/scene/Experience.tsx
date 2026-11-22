@@ -8,6 +8,7 @@ import { CameraRig } from './CameraRig'
 import { DevCamera } from './DevCamera'
 import { City } from './city/City'
 import { PostFX } from './PostFX'
+import { PixelScale } from './pixelScale'
 import { Precompile } from './Precompile'
 import { ReadySignal } from './ReadySignal'
 import { Stadium } from './stadium/Stadium'
@@ -62,6 +63,7 @@ export function Experience() {
           flipflops={4}
         />
       )}
+      <PixelScale />
       <Atmosphere />
       {devCamera ? <DevCamera /> : <CameraRig />}
       <Stadium />

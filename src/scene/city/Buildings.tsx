@@ -7,13 +7,13 @@ import {
   Float32BufferAttribute,
   InstancedBufferAttribute,
   InstancedMesh,
-  MeshBasicMaterial,
   MeshStandardMaterial,
   Object3D,
-  SphereGeometry,
+  Points,
 } from 'three'
 import type { Building } from '../../lib/city/layout'
 import { mulberry32 } from '../../lib/random'
+import { GlowSprites } from '../GlowSprites'
 import { createBuildingMaterial } from './buildingMaterial'
 import { withCityLight } from './cityLight'
 
@@ -43,7 +43,7 @@ function createGableGeometry() {
 export function Buildings({ buildings }: { buildings: Building[] }) {
   const bodies = useRef<InstancedMesh>(null)
   const roofs = useRef<InstancedMesh>(null)
-  const beacons = useRef<InstancedMesh>(null)
+  const beacons = useRef<Points>(null)
 
   const parts = useMemo(() => {
     const rand = mulberry32(77)
@@ -63,9 +63,8 @@ export function Buildings({ buildings }: { buildings: Building[] }) {
       gables,
       roof: createGableGeometry(),
       roofMaterial: withCityLight(new MeshStandardMaterial({ roughness: 0.85 }), 'roofs', { strength: 1.5, falloff: 9 }),
-      tall,
-      beacon: new SphereGeometry(0.9, 8, 6),
-      beaconMaterial: new MeshBasicMaterial({ color: new Color('#ff2a1a').multiplyScalar(6) }),
+      // luz de sinalização no alto das torres, como brilho (estável de longe)
+      beaconPoints: tall.map((b) => [b.x, b.h + 1.2, b.z] as [number, number, number]),
     }
   }, [buildings])
 
@@ -89,14 +88,7 @@ export function Buildings({ buildings }: { buildings: Building[] }) {
       roofs.current!.setMatrixAt(i, dummy.matrix)
       roofs.current!.setColorAt(i, color.set(ROOF_COLORS[Math.floor(rand() * ROOF_COLORS.length)]))
     })
-    parts.tall.forEach((b, i) => {
-      dummy.position.set(b.x, b.h + 1.2, b.z)
-      dummy.rotation.set(0, 0, 0)
-      dummy.scale.setScalar(1)
-      dummy.updateMatrix()
-      beacons.current?.setMatrixAt(i, dummy.matrix)
-    })
-    for (const mesh of [bodies.current, roofs.current, beacons.current]) {
+    for (const mesh of [bodies.current, roofs.current]) {
       if (!mesh) continue
       mesh.instanceMatrix.needsUpdate = true
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
@@ -115,8 +107,8 @@ export function Buildings({ buildings }: { buildings: Building[] }) {
     <group>
       <instancedMesh ref={bodies} args={[parts.body, parts.material, buildings.length]} receiveShadow />
       <instancedMesh ref={roofs} args={[parts.roof, parts.roofMaterial, parts.gables.length]} receiveShadow />
-      {parts.tall.length > 0 && (
-        <instancedMesh ref={beacons} args={[parts.beacon, parts.beaconMaterial, parts.tall.length]} />
+      {parts.beaconPoints.length > 0 && (
+        <GlowSprites ref={beacons} points={parts.beaconPoints} color="#ff2a1a" size={3} intensity={5} minPx={2} />
       )}
     </group>
   )
