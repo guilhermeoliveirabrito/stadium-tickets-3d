@@ -153,7 +153,7 @@ function CornerFlag({ x, z }: { x: number; z: number }) {
 
 export function Pitch() {
   const geometry = useMemo(() => new ShapeGeometry(roundedRect(BOWL.halfX, BOWL.halfZ, BOWL.radius), 24), [])
-  const material = useMemo(createPitchMaterial, [])
+  const material = useMemo(() => createPitchMaterial(), [])
   const { halfLength: hl, halfWidth: hw } = PITCH
 
   return (

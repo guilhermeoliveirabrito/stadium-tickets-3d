@@ -3,12 +3,11 @@ import { BoxGeometry, BufferGeometry, Matrix4, MeshStandardMaterial } from 'thre
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { SKYBOX } from '../../config/stadium'
 import { frameAt, SEGMENTS, type Frame } from '../../lib/bowl'
+import { getSkyboxes, SKYBOX_SEGMENTS } from '../../lib/skyboxes'
 import { profile, SweepBuilder } from '../../lib/sweep'
 import { FrameInstances } from './FrameInstances'
 import { withSurfaceNoise } from './materials'
 
-/** Laterais com camarotes (norte e sul); o resto do anel recebe uma parede de serviço. */
-export const SKYBOX_SEGMENTS = [0, 4]
 const OTHER_SEGMENTS = [1, 2, 3, 5, 6, 7]
 
 function createArmchairGeometry(): BufferGeometry {
@@ -22,23 +21,6 @@ function createArmchairGeometry(): BufferGeometry {
   const g = mergeGeometries(parts)!
   g.deleteAttribute('uv')
   return g
-}
-
-export interface SkyboxInfo {
-  id: number
-  segment: number
-  center: number
-}
-
-export function getSkyboxes(): SkyboxInfo[] {
-  const out: SkyboxInfo[] = []
-  for (const segment of SKYBOX_SEGMENTS) {
-    const seg = SEGMENTS[segment]
-    if (seg.kind !== 'line') continue
-    const count = Math.round(seg.length / SKYBOX.width)
-    for (let k = 0; k < count; k++) out.push({ id: out.length + 1, segment, center: (k + 0.5) / count })
-  }
-  return out
 }
 
 export function Skyboxes() {

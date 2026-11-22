@@ -6,21 +6,22 @@ import { useLayoutEffect, useRef } from 'react'
  * primeiros quadros em vez de a cada frame.
  */
 export function StaticShadows({ frames = 3 }: { frames?: number }) {
-  const gl = useThree((s) => s.gl)
+  const get = useThree((s) => s.get)
   const remaining = useRef(frames)
 
   useLayoutEffect(() => {
-    gl.shadowMap.autoUpdate = false
-    gl.shadowMap.needsUpdate = true
+    const { shadowMap } = get().gl
+    shadowMap.autoUpdate = false
+    shadowMap.needsUpdate = true
     return () => {
-      gl.shadowMap.autoUpdate = true
+      shadowMap.autoUpdate = true
     }
-  }, [gl])
+  }, [get])
 
-  useFrame(() => {
+  useFrame((state) => {
     if (remaining.current <= 0) return
     remaining.current--
-    gl.shadowMap.needsUpdate = true
+    state.gl.shadowMap.needsUpdate = true
   })
 
   return null

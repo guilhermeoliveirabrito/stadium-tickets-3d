@@ -102,6 +102,11 @@ export const PARAPET_THICKNESS = 0.3
 export const BACK_WALL_THICKNESS = 0.3
 export const AISLE_WIDTH = 1.1
 
+export const SEAT_COLORS = {
+  taken: '#cf1f2e',
+  available: '#1f4fd6',
+}
+
 export const SEAT = {
   pitch: 0.5,
   width: 0.44,

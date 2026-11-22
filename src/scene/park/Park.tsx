@@ -4,7 +4,7 @@ import { Ground } from './Ground'
 import { Trees } from './Trees'
 
 export function Park() {
-  const trees = useMemo(plantTrees, [])
+  const trees = useMemo(() => plantTrees(), [])
   return (
     <group>
       <Ground trees={trees} />
