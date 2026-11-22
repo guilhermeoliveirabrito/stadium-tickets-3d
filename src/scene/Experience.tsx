@@ -8,7 +8,6 @@ import { DevCamera } from './DevCamera'
 import { City } from './city/City'
 import { PostFX } from './PostFX'
 import { ReadySignal } from './ReadySignal'
-import { StaticShadows } from './StaticShadows'
 import { Stadium } from './stadium/Stadium'
 
 const devCamera = import.meta.env.DEV && new URLSearchParams(window.location.search).has('cam')
@@ -22,7 +21,6 @@ export function Experience() {
   return (
     <Canvas
       className="experience"
-      shadows="percentage"
       dpr={dpr}
       gl={{ antialias: false, powerPreference: 'high-performance', stencil: false }}
       onCreated={({ gl }) => {
@@ -35,7 +33,6 @@ export function Experience() {
       {devCamera ? <DevCamera /> : <CameraRig />}
       <Stadium />
       <City />
-      <StaticShadows />
       <PostFX />
       <ReadySignal skipIntro={devCamera} />
     </Canvas>

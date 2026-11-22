@@ -24,18 +24,7 @@ export function Atmosphere() {
         args={[NIGHT.hemisphere.sky, NIGHT.hemisphere.ground, NIGHT.hemisphere.intensity]}
       />
 
-      <directionalLight
-        position={lightPosition}
-        intensity={NIGHT.moonlight.intensity}
-        color={NIGHT.moonlight.color}
-        castShadow
-        shadow-mapSize={[4096, 4096]}
-        shadow-bias={-0.00015}
-        shadow-normalBias={0.035}
-        shadow-radius={4}
-      >
-        <orthographicCamera attach="shadow-camera" args={[-170, 170, 170, -170, 100, 1200]} />
-      </directionalLight>
+      <directionalLight position={lightPosition} intensity={NIGHT.moonlight.intensity} color={NIGHT.moonlight.color} />
 
       <fog attach="fog" args={[FOG.color, FOG.near, FOG.far]} />
     </>

@@ -6,13 +6,16 @@ import {
   BufferGeometry,
   Color,
   PerspectiveCamera,
-  PointLight,
   Points,
   ShaderMaterial,
+  Vector3,
 } from 'three'
 import { BOWL, ROOF } from '../../config/stadium'
 import { mulberry32 } from '../../lib/random'
 import { useExperience } from '../../store/experience'
+import { setFlash } from '../lighting'
+
+const FALLBACK = new Color()
 
 /** Tempo de subida do foguete até estourar (s). */
 const RISE = 1.35
@@ -193,8 +196,8 @@ export function Fireworks() {
     }
   }, [])
   const points = useRef<Points>(null)
-  const flash = useRef<PointLight>(null)
   const clock = useRef(-1)
+  const flashPos = useRef(new Vector3())
   const lastBurst = useMemo(() => bursts.reduce((t, b) => Math.max(t, b.launch + RISE + 4), 0), [bursts])
 
   useFrame((state, delta) => {
@@ -213,29 +216,22 @@ export function Fireworks() {
       points.current.visible = !done
     }
 
-    // clarão do estouro mais recente, na cor dele
-    const light = flash.current
-    if (!light) return
+    // clarão do estouro mais recente, na cor dele (aplicado direto nos materiais)
     let intensity = 0
+    let color: Color | null = null
     for (const b of bursts) {
       const age = t - b.launch - RISE
       if (age >= 0 && age < 0.9) {
         const value = 70000 * Math.exp(-age * 5.5)
         if (value > intensity) {
           intensity = value
-          light.position.set(b.x, ROOF_Y + b.height, b.z)
-          light.color.copy(b.color)
+          color = b.color
+          flashPos.current.set(b.x, ROOF_Y + b.height, b.z)
         }
       }
     }
-    light.intensity = done ? 0 : intensity
+    setFlash(done || !color ? null : flashPos.current, color ?? FALLBACK, intensity)
   })
 
-  return (
-    <group>
-      <points ref={points} geometry={geometry} material={material} frustumCulled={false} />
-      {/* a luz existe desde o início (apagada) para os shaders não recompilarem */}
-      <pointLight ref={flash} intensity={0} decay={2} distance={0} />
-    </group>
-  )
+  return <points ref={points} geometry={geometry} material={material} frustumCulled={false} />
 }

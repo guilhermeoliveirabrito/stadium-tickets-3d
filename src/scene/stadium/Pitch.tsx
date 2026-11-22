@@ -9,6 +9,7 @@ import {
 } from 'three'
 import { BOWL, PITCH } from '../../config/stadium'
 import { canvasTexture, getNoiseTexture } from '../../lib/textures'
+import { FLASH_HEADER, flashTerm, flashUniforms } from '../lighting'
 import { pitchShaderChunk } from './pitchShader'
 
 function roundedRect(halfX: number, halfZ: number, r: number) {
@@ -29,13 +30,20 @@ function createPitchMaterial() {
   const material = new MeshStandardMaterial({ roughness: 0.94, metalness: 0 })
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uNoise = { value: getNoiseTexture() }
+    Object.assign(shader.uniforms, flashUniforms)
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec2 vPitch;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvPitch = vec2(position.x, -position.y);')
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', `#include <common>\n${pitchShaderChunk}`)
+      .replace('#include <common>', `#include <common>\n${pitchShaderChunk}\n${FLASH_HEADER}`)
       .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = pitchColor(vPitch);')
-      .replace('#include <lights_fragment_maps>', '#include <lights_fragment_maps>\nirradiance += vec3(0.35, 0.37, 0.4);')
+      .replace(
+        '#include <lights_fragment_maps>',
+        `#include <lights_fragment_maps>
+        // gramado sob os refletores: mais claro no centro, onde os feixes se somam
+        irradiance += vec3(0.96, 0.98, 1.0) * mix(4.4, 3.2, smoothstep(18.0, 70.0, length(vPitch)));
+        ${flashTerm('vec3(vPitch.x, 0.0, vPitch.y)')}`,
+      )
   }
   material.customProgramCacheKey = () => 'pitch'
   return material

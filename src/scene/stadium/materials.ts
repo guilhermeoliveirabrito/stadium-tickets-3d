@@ -1,32 +1,37 @@
 import type { Material } from 'three'
 import { getNoiseTexture } from '../../lib/textures'
+import { FLASH_HEADER, flashTerm, flashUniforms, floodTerm } from '../lighting'
 
 interface Options {
   strength?: number
   /** soma o atributo aEmissive (faixas de LED geradas no perfil) */
   vertexEmissive?: boolean
-  /** luz rebatida dentro do estádio (só para este material) */
+  /** luz dos refletores e rebatida dentro do estádio (só para este material) */
   fill?: number
-}
-
-/**
- * Simula a luz que o gramado e as arquibancadas rebatem durante um jogo
- * noturno. Funciona como uma luz ambiente aplicada só aos materiais do
- * estádio, sem clarear a cidade em volta.
- */
-export const STADIUM_FILL = '0.62, 0.64, 0.72'
-
-function fillChunk(fill: number) {
-  return fill > 0 ? `irradiance += vec3(${STADIUM_FILL}) * ${fill.toFixed(3)};` : ''
 }
 
 export function withLocalFill<T extends Material>(material: T, key: string, fill: number) {
   material.onBeforeCompile = (shader) => {
-    shader.fragmentShader = shader.fragmentShader.replace(
-      '#include <lights_fragment_maps>',
-      `#include <lights_fragment_maps>
-      ${fillChunk(fill)}`,
-    )
+    Object.assign(shader.uniforms, flashUniforms)
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vFillWorld;')
+      .replace(
+        '#include <project_vertex>',
+        `#include <project_vertex>
+        vec4 fillWorld = vec4(transformed, 1.0);
+        #ifdef USE_INSTANCING
+          fillWorld = instanceMatrix * fillWorld;
+        #endif
+        vFillWorld = (modelMatrix * fillWorld).xyz;`,
+      )
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>\nvarying vec3 vFillWorld;\n${FLASH_HEADER}`)
+      .replace(
+        '#include <lights_fragment_maps>',
+        `#include <lights_fragment_maps>
+        ${floodTerm(fill)}
+        ${flashTerm('vFillWorld')}`,
+      )
   }
   material.customProgramCacheKey = () => `fill-${key}`
   return material
@@ -41,6 +46,7 @@ export function withSurfaceNoise<T extends Material>(material: T, key: string, o
   } = typeof options === 'number' ? { strength: options } : options
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uNoise = { value: getNoiseTexture() }
+    Object.assign(shader.uniforms, flashUniforms)
     shader.vertexShader = shader.vertexShader
       .replace(
         '#include <common>',
@@ -60,6 +66,7 @@ export function withSurfaceNoise<T extends Material>(material: T, key: string, o
         `#include <common>
         varying vec3 vSurfacePos;
         uniform sampler2D uNoise;
+        ${FLASH_HEADER}
         ${vertexEmissive ? 'varying vec3 vEmissive;' : ''}`,
       )
       .replace(
@@ -77,7 +84,8 @@ export function withSurfaceNoise<T extends Material>(material: T, key: string, o
       .replace(
         '#include <lights_fragment_maps>',
         `#include <lights_fragment_maps>
-        ${fillChunk(fill)}`,
+        ${floodTerm(fill)}
+        ${flashTerm('vSurfacePos')}`,
       )
   }
   material.customProgramCacheKey = () => `surface-noise-${key}`

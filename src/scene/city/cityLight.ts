@@ -1,6 +1,7 @@
 import type { Material, Texture, WebGLProgramParametersWithUniforms } from 'three'
 import { getCity, HALF, WORLD } from '../../lib/city/layout'
 import { canvasTexture } from '../../lib/textures'
+import { FLASH_HEADER, flashTerm, flashUniforms } from '../lighting'
 import { drawLightMap } from './groundTexture'
 
 let lightMap: Texture | null = null
@@ -30,6 +31,7 @@ interface CityLightOptions {
 export function addCityLight(shader: WebGLProgramParametersWithUniforms, options: CityLightOptions = {}) {
   const { strength = 2, falloff = 5 } = options
   shader.uniforms.uCityLight = { value: getCityLightMap() }
+  Object.assign(shader.uniforms, flashUniforms)
   shader.vertexShader = shader.vertexShader
     .replace('#include <common>', '#include <common>\nvarying vec3 vCityPos;')
     .replace(
@@ -42,7 +44,7 @@ export function addCityLight(shader: WebGLProgramParametersWithUniforms, options
       vCityPos = (modelMatrix * cityWorld).xyz;`,
     )
   shader.fragmentShader = shader.fragmentShader
-    .replace('#include <common>', '#include <common>\nvarying vec3 vCityPos;\nuniform sampler2D uCityLight;')
+    .replace('#include <common>', `#include <common>\nvarying vec3 vCityPos;\nuniform sampler2D uCityLight;\n${FLASH_HEADER}`)
     .replace(
       '#include <lights_fragment_maps>',
       `#include <lights_fragment_maps>
@@ -52,7 +54,8 @@ export function addCityLight(shader: WebGLProgramParametersWithUniforms, options
         float lift = exp2(-max(vCityPos.y, 0.0) / ${falloff.toFixed(2)});
         float facing = 0.55 + 0.45 * clamp(normal.y, 0.0, 1.0);
         irradiance += cityLight * ${strength.toFixed(2)} * lift * facing;
-      }`,
+      }
+      ${flashTerm('vCityPos')}`,
     )
 }
 
