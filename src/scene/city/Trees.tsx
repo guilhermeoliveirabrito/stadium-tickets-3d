@@ -48,12 +48,13 @@ function shadeByHeight(g: BufferGeometry, low = 0.42, high = 1.06) {
 }
 
 function canopyVariants() {
-  const broad = shadeByHeight(lumpy(new IcosahedronGeometry(1, 1), 3, 0.26))
-  const pine = shadeByHeight(lumpy(new ConeGeometry(0.85, 2.6, 9, 3).translate(0, 0.3, 0), 7, 0.1), 0.45, 1.0)
+  // copas simples: à noite as árvores são quase silhuetas, e são milhares delas
+  const broad = shadeByHeight(lumpy(new IcosahedronGeometry(1, 0), 3, 0.18))
+  const pine = shadeByHeight(lumpy(new ConeGeometry(0.85, 2.6, 7, 1).translate(0, 0.3, 0), 7, 0.08), 0.45, 1.0)
   const cluster = shadeByHeight(
     mergeGeometries([
-      lumpy(new IcosahedronGeometry(0.78, 1), 11, 0.2).translate(-0.34, -0.04, 0.1),
-      lumpy(new IcosahedronGeometry(0.7, 1), 13, 0.2).translate(0.4, 0.08, -0.12),
+      lumpy(new IcosahedronGeometry(0.78, 0), 11, 0.16).translate(-0.34, -0.04, 0.1),
+      lumpy(new IcosahedronGeometry(0.7, 0), 13, 0.16).translate(0.4, 0.08, -0.12),
     ])!,
   )
   return [broad, pine, cluster, createPalm()]
@@ -139,7 +140,7 @@ function TreeVariant({ trees, geometry, material }: { trees: TreeSpec[]; geometr
 
 function Trunks({ trees }: { trees: TreeSpec[] }) {
   const ref = useRef<InstancedMesh>(null)
-  const geometry = useMemo(() => new CylinderGeometry(0.12, 0.2, 1, 6, 1, true).translate(0, 0.5, 0), [])
+  const geometry = useMemo(() => new CylinderGeometry(0.12, 0.2, 1, 4, 1, true).translate(0, 0.5, 0), [])
   const material = useMemo(() => new MeshStandardMaterial({ color: '#4f3d2c', roughness: 1 }), [])
   useLayoutEffect(() => {
     const mesh = ref.current!

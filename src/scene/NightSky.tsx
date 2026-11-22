@@ -109,7 +109,8 @@ export function NightSky({ radius = 5000, animated = true, clouds = 1, stars = 1
     if (animated && mesh.current) (mesh.current.material as ShaderMaterial).uniforms.uTime.value += delta
   })
   return (
-    <mesh ref={mesh} scale={radius} material={material} renderOrder={-1} frustumCulled={false}>
+    // desenhado depois do resto: só os pixels onde o céu aparece de fato são calculados
+    <mesh ref={mesh} scale={radius} material={material} renderOrder={1000} frustumCulled={false}>
       <sphereGeometry args={[1, 48, 24]} />
     </mesh>
   )
