@@ -7,7 +7,7 @@ export function Park() {
   const trees = useMemo(() => plantTrees(), [])
   return (
     <group>
-      <Ground trees={trees} />
+      <Ground />
       <Trees trees={trees} />
     </group>
   )

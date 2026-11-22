@@ -35,6 +35,7 @@ function createPitchMaterial() {
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>\n${pitchShaderChunk}`)
       .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = pitchColor(vPitch);')
+      .replace('#include <lights_fragment_maps>', '#include <lights_fragment_maps>\nirradiance += vec3(0.35, 0.37, 0.4);')
   }
   material.customProgramCacheKey = () => 'pitch'
   return material

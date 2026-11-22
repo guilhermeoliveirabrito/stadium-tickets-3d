@@ -1,6 +1,5 @@
 import { CatmullRomCurve3, Vector3 } from 'three'
 import { BOWL } from '../config/stadium'
-import { SUN_DIRECTION } from '../config/world'
 import { fbm, mulberry32 } from './random'
 
 /** Lado do terreno detalhado (m). Fora dele o chão vira uma cor contínua sob a neblina. */
@@ -199,13 +198,3 @@ export function plantTrees(): TreeSpec[] {
   for (const t of trees) t.height = t.radius * (t.variant === 1 ? 3.1 : 1.9) + 1.5
   return trees
 }
-
-/** Direção da sombra projetada no chão (unitária) e comprimento por metro de altura. */
-export const SHADOW = (() => {
-  const len = Math.hypot(SUN_DIRECTION.x, SUN_DIRECTION.z)
-  return {
-    dx: -SUN_DIRECTION.x / len,
-    dz: -SUN_DIRECTION.z / len,
-    perMeter: len / SUN_DIRECTION.y,
-  }
-})()

@@ -1,13 +1,13 @@
 import { useMemo } from 'react'
 import { MeshStandardMaterial, PlaneGeometry, Shape, ShapeGeometry } from 'three'
-import { LAKE, PARK_SIZE, type TreeSpec } from '../../lib/park'
+import { LAKE, PARK_SIZE } from '../../lib/park'
 import { canvasTexture } from '../../lib/textures'
 import { withSurfaceNoise } from '../stadium/materials'
 import { drawGround, FAR_GROUND } from './groundTexture'
 
-export function Ground({ trees }: { trees: TreeSpec[] }) {
+export function Ground() {
   const parts = useMemo(() => {
-    const map = canvasTexture(4096, 4096, (ctx, size) => drawGround(ctx, size, trees), { anisotropy: 16 })
+    const map = canvasTexture(4096, 4096, (ctx, size) => drawGround(ctx, size), { anisotropy: 16 })
     const lake = new Shape()
     LAKE.outline.forEach(([x, z], i) => (i ? lake.lineTo(x, -z) : lake.moveTo(x, -z)))
     return {
@@ -18,7 +18,7 @@ export function Ground({ trees }: { trees: TreeSpec[] }) {
       lake: new ShapeGeometry(lake, 1),
       water: new MeshStandardMaterial({ color: '#36606c', roughness: 0.07, metalness: 0.15, envMapIntensity: 1.5 }),
     }
-  }, [trees])
+  }, [])
 
   return (
     <group>

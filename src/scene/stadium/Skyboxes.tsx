@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { BoxGeometry, BufferGeometry, Matrix4, MeshStandardMaterial } from 'three'
+import { BoxGeometry, BufferGeometry, Color, Matrix4, MeshStandardMaterial } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { SKYBOX } from '../../config/stadium'
 import { frameAt, SEGMENTS, type Frame } from '../../lib/bowl'
@@ -9,6 +9,8 @@ import { FrameInstances } from './FrameInstances'
 import { withSurfaceNoise } from './materials'
 
 const OTHER_SEGMENTS = [1, 2, 3, 5, 6, 7]
+// painel de madeira iluminado no fundo dos camarotes
+const WARM_WALL = new Color('#ff9348').multiplyScalar(0.35)
 
 function createArmchairGeometry(): BufferGeometry {
   const parts = [
@@ -44,7 +46,7 @@ export function Skyboxes() {
       )
       .around(
         profile([
-          [back - 0.3, r2[1], '#7b5236'],
+          [back - 0.3, r2[1], '#7b5236', WARM_WALL],
           [back - 0.3, ceiling, '#7b5236'],
           [back, ceiling, '#7b5236'],
           [back, r2[1], '#7b5236'],
@@ -108,7 +110,11 @@ export function Skyboxes() {
       mullions,
       chairs,
       lights,
-      shellMaterial: withSurfaceNoise(new MeshStandardMaterial({ vertexColors: true, roughness: 0.8 }), 'skybox', 0.1),
+      shellMaterial: withSurfaceNoise(new MeshStandardMaterial({ vertexColors: true, roughness: 0.8 }), 'skybox', {
+        strength: 0.1,
+        vertexEmissive: true,
+        fill: 0.6,
+      }),
       glassMaterial: new MeshStandardMaterial({
         color: '#a9c2d6',
         roughness: 0.04,
@@ -121,7 +127,7 @@ export function Skyboxes() {
       wallMaterial: new MeshStandardMaterial({ color: '#e7e3dc', roughness: 0.7 }),
       frameMaterial: new MeshStandardMaterial({ color: '#2a2d33', roughness: 0.4, metalness: 0.5 }),
       leather: new MeshStandardMaterial({ color: '#1c1c20', roughness: 0.34, metalness: 0.05 }),
-      lightMaterial: new MeshStandardMaterial({ color: '#fff', emissive: '#ffd9a6', emissiveIntensity: 2.2 }),
+      lightMaterial: new MeshStandardMaterial({ color: '#fff', emissive: '#ffd39b', emissiveIntensity: 4 }),
       partitionGeometry: new BoxGeometry(0.16, ceiling - floor, back - front).translate(0, (ceiling - floor) / 2, 0),
       mullionGeometry: new BoxGeometry(0.07, ceiling - floor, 0.1).translate(0, (ceiling - floor) / 2, 0),
       chairGeometry: createArmchairGeometry(),

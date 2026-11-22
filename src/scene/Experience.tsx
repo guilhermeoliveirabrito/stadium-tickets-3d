@@ -1,4 +1,5 @@
 import { Canvas } from '@react-three/fiber'
+import { NIGHT } from '../config/world'
 import { Atmosphere } from './Atmosphere'
 import { CameraRig } from './CameraRig'
 import { DevCamera } from './DevCamera'
@@ -18,7 +19,7 @@ export function Experience() {
       dpr={[1, 2]}
       gl={{ antialias: false, powerPreference: 'high-performance', stencil: false }}
       onCreated={({ gl }) => {
-        gl.toneMappingExposure = 0.8
+        gl.toneMappingExposure = NIGHT.exposure
       }}
       camera={{ fov: 35, near: 4, far: 9000, position: [0, 470, 120] }}
     >

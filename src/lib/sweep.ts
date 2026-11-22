@@ -6,6 +6,8 @@ export interface ProfilePoint {
   y: number
   /** cor da aresta que sai deste ponto */
   color: Color
+  /** emissão da aresta (faixas de LED); preto quando omitida */
+  emissive?: Color
 }
 
 const ARC_STEP = (2.5 * Math.PI) / 180
@@ -23,6 +25,7 @@ export class SweepBuilder {
   private position: number[] = []
   private normal: number[] = []
   private color: number[] = []
+  private emissive: number[] = []
   private block: number[] = []
   private index: number[] = []
   private frame = frameAt(SEGMENTS[0], 0, 0)
@@ -55,6 +58,8 @@ export class SweepBuilder {
           this.position.push(f.x, p.y, f.z)
           this.normal.push(f.nx * nd, ny, f.nz * nd)
           this.color.push(a.color.r, a.color.g, a.color.b)
+          if (a.emissive) this.emissive.push(a.emissive.r, a.emissive.g, a.emissive.b)
+          else this.emissive.push(0, 0, 0)
           this.block.push(blockIndex)
         }
       }
@@ -77,6 +82,7 @@ export class SweepBuilder {
     g.setAttribute('position', new Float32BufferAttribute(this.position, 3))
     g.setAttribute('normal', new Float32BufferAttribute(this.normal, 3))
     g.setAttribute('color', new Float32BufferAttribute(this.color, 3))
+    g.setAttribute('aEmissive', new Float32BufferAttribute(this.emissive, 3))
     g.setAttribute('aBlock', new Float32BufferAttribute(this.block, 1))
     g.setIndex(new Uint32BufferAttribute(this.index, 1))
     g.computeBoundingSphere()
@@ -84,12 +90,12 @@ export class SweepBuilder {
   }
 }
 
-/** Atalho para montar perfis: [d, y, cor][] */
-export function profile(points: [number, number, string][]): ProfilePoint[] {
+/** Atalho para montar perfis: [d, y, cor, emissão?][] */
+export function profile(points: [number, number, string, Color?][]): ProfilePoint[] {
   const cache = new Map<string, Color>()
-  return points.map(([d, y, hex]) => {
+  return points.map(([d, y, hex, emissive]) => {
     if (!cache.has(hex)) cache.set(hex, new Color(hex))
-    return { d, y, color: cache.get(hex)! }
+    return { d, y, color: cache.get(hex)!, emissive }
   })
 }
 

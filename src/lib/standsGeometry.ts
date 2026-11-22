@@ -70,8 +70,16 @@ function tierProfile(tier: TierGeometry, aisle: boolean): P[] {
   return pts
 }
 
-function colored(points: P[], palette: Record<Kind, Color>): ProfilePoint[] {
-  return points.map((p) => ({ d: p.d, y: p.y, color: palette[p.kind] }))
+// faixa de LED nas bordas dos anéis superiores
+const RIBBON = new Color('#1a2cff').multiplyScalar(1.1)
+
+function colored(points: P[], palette: Record<Kind, Color>, ribbon: boolean): ProfilePoint[] {
+  return points.map((p) => ({
+    d: p.d,
+    y: p.y,
+    color: palette[p.kind],
+    emissive: ribbon && p.kind === 'fascia' ? RIBBON : undefined,
+  }))
 }
 
 export function buildStandsGeometry(layout: StadiumLayout) {
@@ -82,8 +90,9 @@ export function buildStandsGeometry(layout: StadiumLayout) {
     const palette = Object.fromEntries(
       Object.entries({ ...COLORS, fascia: tier.spec.fascia }).map(([k, v]) => [k, new Color(v)]),
     ) as Record<Kind, Color>
-    const seatsProfile = colored(tierProfile(tier, false), palette)
-    const aisleProfile = colored(tierProfile(tier, true), palette)
+    const ribbon = tier.spec.level > 1
+    const seatsProfile = colored(tierProfile(tier, false), palette, ribbon)
+    const aisleProfile = colored(tierProfile(tier, true), palette, ribbon)
 
     for (const block of layout.blocks) {
       if (block.tier !== tier.spec.id) continue

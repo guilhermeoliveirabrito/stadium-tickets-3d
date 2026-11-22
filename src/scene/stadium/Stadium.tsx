@@ -1,5 +1,6 @@
 import { AdBoards } from './AdBoards'
 import { Facade } from './Facade'
+import { Floodlights } from './Floodlights'
 import { Pitch } from './Pitch'
 import { Roof } from './Roof'
 import { Seats } from './Seats'
@@ -16,6 +17,7 @@ export function Stadium() {
       <Skyboxes />
       <Roof />
       <Facade />
+      <Floodlights />
     </group>
   )
 }

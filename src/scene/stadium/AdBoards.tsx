@@ -49,7 +49,7 @@ export function AdBoards() {
           map,
           emissiveMap: map,
           emissive: '#ffffff',
-          emissiveIntensity: 0.9,
+          emissiveIntensity: 2.2,
           roughness: 0.35,
         }),
         faceGeometry: new PlaneGeometry(b.length, HEIGHT),

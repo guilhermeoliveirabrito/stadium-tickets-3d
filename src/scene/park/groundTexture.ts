@@ -1,5 +1,5 @@
 import { BOWL } from '../../config/stadium'
-import { bowlDistance, LAKE, PARK_SIZE, PATHS, PLAZA_D, RING_ROAD_D, SHADOW, type TreeSpec } from '../../lib/park'
+import { bowlDistance, LAKE, PARK_SIZE, PATHS, PLAZA_D, RING_ROAD_D } from '../../lib/park'
 import { fbm } from '../../lib/random'
 
 export const FAR_GROUND = '#5c7a37'
@@ -12,19 +12,6 @@ function roundedRectPath(ctx: CanvasRenderingContext2D, d: number, toPx: (v: num
   const r = BOWL.radius + d
   ctx.beginPath()
   ctx.roundRect(toPx(-hx), toPx(-hz), toPx(hx) - toPx(-hx), toPx(hz) - toPx(-hz), (r / PARK_SIZE) * ctx.canvas.width)
-}
-
-function shadowSprite() {
-  const c = document.createElement('canvas')
-  c.width = c.height = 64
-  const g = c.getContext('2d')!
-  const grad = g.createRadialGradient(32, 32, 4, 32, 32, 32)
-  grad.addColorStop(0, 'rgba(18, 30, 10, 0.62)')
-  grad.addColorStop(0.55, 'rgba(18, 30, 10, 0.42)')
-  grad.addColorStop(1, 'rgba(18, 30, 10, 0)')
-  g.fillStyle = grad
-  g.fillRect(0, 0, 64, 64)
-  return c
 }
 
 function grassBase(size: number) {
@@ -56,7 +43,7 @@ function grassBase(size: number) {
   return { canvas: low, size }
 }
 
-export function drawGround(ctx: CanvasRenderingContext2D, size: number, trees: TreeSpec[]) {
+export function drawGround(ctx: CanvasRenderingContext2D, size: number) {
   const S = size / PARK_SIZE
   const px = (v: number) => (v + HALF) * S
 
@@ -135,23 +122,6 @@ export function drawGround(ctx: CanvasRenderingContext2D, size: number, trees: T
     strokePath(points, !!p.closed)
   }
   ctx.setLineDash([])
-
-  // sombras das árvores (pré-calculadas na direção do sol)
-  const sprite = shadowSprite()
-  const angle = Math.atan2(SHADOW.dz, SHADOW.dx)
-  ctx.globalCompositeOperation = 'multiply'
-  for (const t of trees) {
-    const reach = t.height * 0.62 * SHADOW.perMeter
-    const cx = px(t.x + SHADOW.dx * reach)
-    const cz = px(t.z + SHADOW.dz * reach)
-    const r = t.radius * S
-    ctx.save()
-    ctx.translate(cx, cz)
-    ctx.rotate(angle)
-    ctx.drawImage(sprite, -r * 1.5, -r * 1.05, r * 3, r * 2.1)
-    ctx.restore()
-  }
-  ctx.globalCompositeOperation = 'source-over'
 
   // borda: funde com o chão distante
   const fade = 110 * S

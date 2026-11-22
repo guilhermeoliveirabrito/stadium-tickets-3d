@@ -34,8 +34,8 @@ export function Roof() {
       steel: new MeshStandardMaterial({ color: '#eeede9', roughness: 0.4, metalness: 0.25 }),
       lamp: new MeshStandardMaterial({
         color: '#d9dde3',
-        emissive: '#fff6e8',
-        emissiveIntensity: 0.25,
+        emissive: '#f4f7ff',
+        emissiveIntensity: 7,
         roughness: 0.3,
       }),
       ribs: pointsAlong((inner + outer) / 2, 6.2),
