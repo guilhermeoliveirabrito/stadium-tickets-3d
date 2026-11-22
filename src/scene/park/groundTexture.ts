@@ -33,9 +33,9 @@ function grassBase(size: number) {
   low.width = low.height = n
   const g = low.getContext('2d')!
   const img = g.createImageData(n, n)
-  const light = [128, 164, 70]
-  const dark = [86, 128, 52]
-  const dry = [158, 164, 88]
+  const light = [122, 150, 74]
+  const dark = [82, 112, 54]
+  const dry = [150, 152, 92]
   for (let y = 0; y < n; y++) {
     for (let x = 0; x < n; x++) {
       const wx = (x / n) * PARK_SIZE

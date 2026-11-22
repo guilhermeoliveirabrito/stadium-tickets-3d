@@ -11,7 +11,7 @@ export function Atmosphere() {
     <>
       <Sky distance={4500} sunPosition={sunPosition} {...SKY} />
 
-      <Environment resolution={256} frames={1} environmentIntensity={0.85}>
+      <Environment resolution={256} frames={1} environmentIntensity={0.36}>
         <Sky distance={400} sunPosition={sunPosition} {...SKY} />
         {/* metade de baixo do mapa: grama e concreto refletindo luz */}
         <mesh position-y={-210} scale={[400, 200, 400]}>
@@ -20,11 +20,11 @@ export function Atmosphere() {
         </mesh>
       </Environment>
 
-      <hemisphereLight args={['#dce8ff', '#4f5a36', 0.35]} />
+      <hemisphereLight args={['#dce8ff', '#4f5a36', 0.16]} />
 
       <directionalLight
         position={lightPosition}
-        intensity={3.1}
+        intensity={4.2}
         color="#fff1de"
         castShadow
         shadow-mapSize={[4096, 4096]}
