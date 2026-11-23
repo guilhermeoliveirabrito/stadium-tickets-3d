@@ -14,6 +14,7 @@ import {
 } from 'three'
 import { getCity } from '../../lib/city/layout'
 import { buildTraffic, sampleTrack } from '../../lib/city/traffic'
+import { once } from '../../lib/once'
 import { createGlowGeometry, createGlowMaterial } from '../glowMaterial'
 import { createBeamGeometry, createCarBody, createTailGlowGeometry, getBeamTexture } from './carGeometry'
 import { extendShader, pixelUniforms } from '../pixelScale'
@@ -122,8 +123,10 @@ const TAIL = new Color('#ff1a0d')
 /** lanterna com o freio acionado */
 const BRAKE_BOOST = 2.3
 
+const getTrafficPlan = once(() => buildTraffic(getCity()))
+
 export function Traffic() {
-  const plan = useMemo(() => buildTraffic(getCity()), [])
+  const plan = useMemo(() => getTrafficPlan(), [])
   const carCount = plan.cars.length
   const parts = useMemo(
     () => ({

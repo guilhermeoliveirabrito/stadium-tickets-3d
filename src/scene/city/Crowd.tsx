@@ -17,6 +17,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { CROWD_DENSITY } from '../../config/quality'
 import { buildCrowd, PATH_SAMPLES } from '../../lib/city/crowd'
 import { getCity } from '../../lib/city/layout'
+import { once } from '../../lib/once'
 import { pixelUniforms } from '../pixelScale'
 import { addCityLight } from './cityLight'
 
@@ -122,20 +123,22 @@ function createCrowdMaterial(paths: DataTexture) {
   return material
 }
 
-export function Crowd() {
-  const { geometry, material } = useMemo(() => {
-    const plan = buildCrowd(getCity(), CROWD_DENSITY)
-    const paths = new DataTexture(plan.paths, PATH_SAMPLES, plan.pathCount, RGBAFormat, FloatType)
-    paths.magFilter = paths.minFilter = NearestFilter
-    paths.needsUpdate = true
+const getCrowdParts = once(() => {
+  const plan = buildCrowd(getCity(), CROWD_DENSITY)
+  const paths = new DataTexture(plan.paths, PATH_SAMPLES, plan.pathCount, RGBAFormat, FloatType)
+  paths.magFilter = paths.minFilter = NearestFilter
+  paths.needsUpdate = true
 
-    const geometry = new InstancedBufferGeometry().copy(createPersonGeometry() as unknown as InstancedBufferGeometry)
-    geometry.instanceCount = plan.count
-    geometry.setAttribute('aWalk', new InstancedBufferAttribute(plan.walk, 4))
-    geometry.setAttribute('aLook', new InstancedBufferAttribute(plan.look, 4))
-    geometry.setAttribute('aShirt', new InstancedBufferAttribute(plan.shirt, 3))
-    return { geometry, material: createCrowdMaterial(paths) }
-  }, [])
+  const geometry = new InstancedBufferGeometry().copy(createPersonGeometry() as unknown as InstancedBufferGeometry)
+  geometry.instanceCount = plan.count
+  geometry.setAttribute('aWalk', new InstancedBufferAttribute(plan.walk, 4))
+  geometry.setAttribute('aLook', new InstancedBufferAttribute(plan.look, 4))
+  geometry.setAttribute('aShirt', new InstancedBufferAttribute(plan.shirt, 3))
+  return { geometry, material: createCrowdMaterial(paths) }
+})
+
+export function Crowd() {
+  const { geometry, material } = useMemo(() => getCrowdParts(), [])
 
   useFrame((_, delta) => {
     crowdTime.value += Math.min(delta, 0.1)

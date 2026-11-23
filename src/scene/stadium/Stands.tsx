@@ -10,6 +10,7 @@ import {
   UnsignedByteType,
 } from 'three'
 import { getLayout, type StadiumLayout } from '../../lib/layout'
+import { once } from '../../lib/once'
 import { getSeatColors } from '../../lib/seatColors'
 import { buildStandsGeometry } from '../../lib/standsGeometry'
 import { withSurfaceNoise } from './materials'
@@ -46,17 +47,19 @@ function createSeatMap(layout: StadiumLayout) {
   return { texture, width: SEAT_MAP_WIDTH, height }
 }
 
+const getStandsParts = once(() => {
+  const layout = getLayout()
+  return {
+    geometry: buildStandsGeometry(layout),
+    material: withSurfaceNoise(new MeshLambertMaterial({ vertexColors: true }), 'stands', {
+      vertexEmissive: true,
+      fill: 1.15,
+      seatMap: createSeatMap(layout),
+    }),
+  }
+})
+
 export function Stands() {
-  const { geometry, material } = useMemo(() => {
-    const layout = getLayout()
-    return {
-      geometry: buildStandsGeometry(layout),
-      material: withSurfaceNoise(
-        new MeshLambertMaterial({ vertexColors: true }),
-        'stands',
-        { vertexEmissive: true, fill: 1.15, seatMap: createSeatMap(layout) },
-      ),
-    }
-  }, [])
+  const { geometry, material } = useMemo(() => getStandsParts(), [])
   return <mesh geometry={geometry} material={material} castShadow receiveShadow />
 }

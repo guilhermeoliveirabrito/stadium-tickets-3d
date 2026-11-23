@@ -12,7 +12,7 @@ export function City() {
   const city = useMemo(() => getCity(), [])
   return (
     <group>
-      <Ground city={city} />
+      <Ground />
       <Buildings buildings={city.buildings} />
       <StreetLights lamps={city.lamps} />
       <LotGates lot={city.lot} />
