@@ -26,7 +26,7 @@ export function OverviewPanel({ visible }: { visible: boolean }) {
   }, [])
 
   return (
-    <section className="panel glass" data-visible={visible} aria-label="Visão geral do estádio" aria-hidden={!visible}>
+    <section className="panel panel--overview glass" data-visible={visible} aria-label="Visão geral do estádio" aria-hidden={!visible}>
       <p className="panel__kicker">Visão geral</p>
       <h2 className="panel__title">Escolha seu setor</h2>
       <p className="panel__text">Três anéis, camarotes e vista para o campo inteiro. Os lugares em azul ainda estão livres.</p>

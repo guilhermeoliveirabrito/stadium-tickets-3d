@@ -50,7 +50,8 @@ export function aerialPose(aspect: number, out: Pose = emptyPose()): Pose {
   out.ty = 0
   out.tz = 16
   out.fov = fov
-  out.shift = 0
+  // no celular em pé o estádio sobe para o espaço acima do painel
+  out.shift = isNarrow(aspect) ? NARROW_SHIFT : 0
   out.inside = 0
   return out
 }

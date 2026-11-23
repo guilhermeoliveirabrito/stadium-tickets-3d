@@ -790,4 +790,13 @@
   .panel--box .amenities {
     display: none;
   }
+
+  /* visão geral no celular: a dica logo abaixo já explica o que fazer */
+  .panel--overview .panel__text {
+    display: none;
+  }
+
+  .panel--overview .legend {
+    margin-top: 10px;
+  }
 }
