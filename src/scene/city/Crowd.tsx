@@ -23,7 +23,30 @@ import { addCityLight } from './cityLight'
 
 const crowdTime = { value: 0 }
 
-/** Pessoa bem simples (pernas, tronco e cabeça), com a frente em +Z e os pés em y = 0. */
+// faces de BoxGeometry, na ordem em que ela gera: +x, -x, +y, -y, +z, -z
+const TOP = 2
+const BOTTOM = 3
+
+/** Caixa sem as faces que nunca aparecem (ex.: a base no chão), para pesar menos. */
+function boxWithout(width: number, height: number, depth: number, y: number, skip: number[]) {
+  const box = new BoxGeometry(width, height, depth).translate(0, y, 0).toNonIndexed()
+  const keep = [0, 1, 2, 3, 4, 5].filter((face) => !skip.includes(face))
+  const out = new BufferGeometry()
+  for (const name of ['position', 'normal']) {
+    const source = box.getAttribute(name)
+    const values = new Float32Array(keep.length * 6 * 3)
+    keep.forEach((face, k) => values.set((source.array as Float32Array).subarray(face * 18, face * 18 + 18), k * 18))
+    out.setAttribute(name, new BufferAttribute(values, 3))
+  }
+  box.dispose()
+  return out
+}
+
+/**
+ * Pessoa bem simples (pernas, tronco e cabeça), com a frente em +Z e os pés
+ * em y = 0. Sem as faces que nunca aparecem: a base das pernas (no chão), o
+ * topo das pernas (dentro do tronco) e a base do tronco.
+ */
 function createPersonGeometry() {
   const paint = (g: BufferGeometry, rgb: [number, number, number]) => {
     const count = g.attributes.position.count
@@ -35,8 +58,8 @@ function createPersonGeometry() {
   }
   // as cores marcam as partes: branco puro vira a camisa, o tom de pele varia por pessoa
   return mergeGeometries([
-    paint(new BoxGeometry(0.34, 0.84, 0.2).translate(0, 0.42, 0).toNonIndexed(), [0.11, 0.12, 0.16]),
-    paint(new BoxGeometry(0.46, 0.62, 0.26).translate(0, 1.15, 0).toNonIndexed(), [1, 1, 1]),
+    paint(boxWithout(0.34, 0.84, 0.2, 0.42, [TOP, BOTTOM]), [0.11, 0.12, 0.16]),
+    paint(boxWithout(0.46, 0.62, 0.26, 1.15, [BOTTOM]), [1, 1, 1]),
     paint(new OctahedronGeometry(0.14, 0).translate(0, 1.6, 0.01), [0.93, 0.7, 0.56]),
   ])!
 }
