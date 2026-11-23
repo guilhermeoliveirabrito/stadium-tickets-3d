@@ -59,7 +59,8 @@ export function CameraRig() {
     if (phase !== 'intro') return
     const { width, height } = get().size
     const tl = gsap.timeline({ onComplete: () => setPhase('aerial') })
-    tl.to(rig.current, { ...INTRO_SWEEP, duration: 6, ease: 'power1.inOut' })
+    // a câmera segura um instante no começo, para o dirigível passar com o GitHub à vista
+    tl.to(rig.current, { ...INTRO_SWEEP, duration: 6, ease: 'power1.inOut' }, 1.6)
     tl.to(rig.current, { ...aerialPose(width / height), duration: 3.2, ease: 'power3.inOut' }, '-=0.9')
     timeline.current = tl
     return () => {

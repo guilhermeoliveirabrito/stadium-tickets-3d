@@ -6,12 +6,16 @@ import {
   DoubleSide,
   Float32BufferAttribute,
   type Group,
+  MathUtils,
   MeshBasicMaterial,
   MeshLambertMaterial,
+  Vector3,
 } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { once } from '../../lib/once'
 import { canvasTexture } from '../../lib/textures'
+import { introDisabled, useExperience } from '../../store/experience'
+import { INTRO_START } from '../cameraPoses'
 import { outside } from '../outside'
 import { drawGithub } from '../stadium/ledContent'
 
@@ -23,6 +27,70 @@ const RADIUS = 6.8
  * do estádio, visto da câmera no início da abertura.
  */
 const ORBIT = { rx: 185, rz: 120, height: 125, period: 210, start: -1.0 }
+
+/**
+ * Começo da abertura: o dirigível passa perto da câmera, com a faixa do
+ * GitHub virada para ela, no alto da tela (o título fica embaixo).
+ * - share: fração da largura da tela ocupada pelo dirigível (nas telas
+ *   estreitas ele passa da largura, cortando o nariz e a cauda, para o texto
+ *   da faixa ficar grande o bastante para ler)
+ * - drift: quanto da largura da tela ele anda por segundo
+ * - from: onde a faixa começa, em fração da largura (negativo = à esquerda)
+ * - height: altura na tela, em fração da meia altura acima do centro
+ */
+const FLYBY = { wideShare: 0.42, narrowShare: 1.15, drift: 0.05, from: -0.12, height: 0.46 }
+/** depois da abertura, tempo (s) para fazer a curva e entrar na volta em torno do estádio */
+const JOIN_SECONDS = 24
+
+/** Posição e velocidade (m/s) na volta em torno do estádio, no instante t. */
+function orbitAt(t: number, position: Vector3, velocity: Vector3) {
+  const w = (Math.PI * 2) / ORBIT.period
+  const a = ORBIT.start + t * w
+  position.set(Math.cos(a) * ORBIT.rx, ORBIT.height + Math.sin(a * 3) * 2, Math.sin(a) * ORBIT.rz)
+  velocity.set(-Math.sin(a) * ORBIT.rx * w, Math.cos(a * 3) * 6 * w, Math.cos(a) * ORBIT.rz * w)
+}
+
+/**
+ * Passagem da abertura, calculada a partir da pose inicial da câmera: o
+ * dirigível fica a uma distância em que ocupa uma boa parte da largura da tela
+ * e anda devagar para a direita.
+ */
+function flybyStart(aspect: number) {
+  const { az, el, dist, tx, ty, tz, fov } = INTRO_START
+  const camera = new Vector3(tx + dist * Math.cos(el) * Math.sin(az), ty + dist * Math.sin(el), tz + dist * Math.cos(el) * Math.cos(az))
+  const forward = new Vector3(tx, ty, tz).sub(camera).normalize()
+  const right = new Vector3().crossVectors(forward, new Vector3(0, 1, 0)).normalize()
+  const up = new Vector3().crossVectors(right, forward).normalize()
+  const t = Math.tan(MathUtils.degToRad(fov / 2))
+  // de 0,8 (celular em pé) a 1,3 de proporção, passa de "maior que a tela" para "42% da tela"
+  const share = MathUtils.lerp(FLYBY.narrowShare, FLYBY.wideShare, MathUtils.smoothstep(aspect, 0.8, 1.3))
+  const distance = Math.max(LENGTH / (share * 2 * t * aspect), 70)
+  const visibleWidth = 2 * t * aspect * distance
+  const position = camera
+    .clone()
+    .addScaledVector(forward, distance)
+    .addScaledVector(up, distance * t * FLYBY.height)
+    .addScaledVector(right, FLYBY.from * visibleWidth)
+  return { position, velocity: right.setY(0).normalize().multiplyScalar(FLYBY.drift * visibleWidth) }
+}
+
+const scratch = new Vector3()
+
+/** Curva de Bézier cúbica (posição ou derivada) entre os quatro pontos. */
+function bezier(p: Vector3[], u: number, out: Vector3, derivative = false) {
+  const v = 1 - u
+  if (derivative) {
+    out.copy(p[1]).sub(p[0]).multiplyScalar(3 * v * v)
+    out.addScaledVector(scratch.copy(p[2]).sub(p[1]), 6 * v * u)
+    return out.addScaledVector(scratch.copy(p[3]).sub(p[2]), 3 * u * u)
+  }
+  return out
+    .copy(p[0])
+    .multiplyScalar(v * v * v)
+    .addScaledVector(p[1], 3 * v * v * u)
+    .addScaledVector(p[2], 3 * v * u * u)
+    .addScaledVector(p[3], u * u * u)
+}
 
 /** Raio do envelope em t (0 = nariz, 1 = cauda): nariz cheio e cauda afinando. */
 const radiusAt = (t: number) => RADIUS * Math.pow(Math.sin(Math.PI * Math.min(Math.max(t, 0.001), 0.999)), 0.62) * (1 - 0.18 * t)
@@ -145,15 +213,65 @@ export function Blimp() {
     })
   }, [])
 
+  // abertura: passagem perto da câmera; depois, a curva até a volta em torno do estádio
+  const motion = useRef({
+    mode: 'none' as 'none' | 'flyby' | 'join' | 'orbit',
+    flybyFrom: new Vector3(),
+    flybyVelocity: new Vector3(),
+    flybyStart: -1,
+    join: [new Vector3(), new Vector3(), new Vector3(), new Vector3()],
+    joinStart: 0,
+    position: new Vector3(),
+    velocity: new Vector3(),
+  })
+
   useFrame((state) => {
     const group = ref.current
     if (!group) return
+    const m = motion.current
+    const t = state.clock.elapsedTime
+    const { phase, introSkipped } = useExperience.getState()
+    const opening = (phase === 'loading' || phase === 'intro') && !introSkipped
+
+    if (m.mode === 'none') {
+      if (opening && !introDisabled) {
+        const start = flybyStart(state.size.width / state.size.height)
+        m.flybyFrom.copy(start.position)
+        m.flybyVelocity.copy(start.velocity)
+        m.mode = 'flyby'
+      } else m.mode = 'orbit'
+    }
+    if (m.mode === 'flyby') {
+      // parado até a abertura da câmera começar (a tela ainda está preta)
+      if (phase === 'intro' && m.flybyStart < 0) m.flybyStart = t
+      m.position.copy(m.flybyFrom).addScaledVector(m.flybyVelocity, m.flybyStart < 0 ? 0 : t - m.flybyStart)
+      m.velocity.copy(m.flybyVelocity)
+      if (!opening) {
+        // fim da abertura (ou abertura pulada): curva suave até a volta
+        const [p0, p1, p2, p3] = m.join
+        p0.copy(m.position)
+        p1.copy(m.position).addScaledVector(m.velocity, JOIN_SECONDS / 3)
+        orbitAt(t + JOIN_SECONDS, p3, p2)
+        p2.multiplyScalar(-JOIN_SECONDS / 3).add(p3)
+        m.joinStart = t
+        m.mode = 'join'
+      }
+    }
+    if (m.mode === 'join') {
+      const u = (t - m.joinStart) / JOIN_SECONDS
+      if (u >= 1) m.mode = 'orbit'
+      else {
+        bezier(m.join, u, m.position)
+        bezier(m.join, u, m.velocity, true)
+      }
+    }
+    if (m.mode === 'orbit') orbitAt(t, m.position, m.velocity)
+
     group.visible = outside.visible
     if (!group.visible) return
-    const a = ORBIT.start + (state.clock.elapsedTime / ORBIT.period) * Math.PI * 2
-    group.position.set(Math.cos(a) * ORBIT.rx, ORBIT.height + Math.sin(a * 3) * 2, Math.sin(a) * ORBIT.rz)
-    // nariz na direção da volta (tangente da elipse), com uma leve inclinação
-    group.rotation.set(0, Math.atan2(-Math.cos(a) * ORBIT.rz, -Math.sin(a) * ORBIT.rx), 0.03)
+    group.position.copy(m.position)
+    // nariz na direção do movimento, com uma leve inclinação
+    group.rotation.set(0, Math.atan2(-m.velocity.z, m.velocity.x), 0.03)
   })
 
   return (
