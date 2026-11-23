@@ -106,34 +106,39 @@ function pathSpecs(city: CityLayout, rand: Random): PathSpec[] {
     }
   })
 
-  // do estacionamento até a esplanada, pelas passarelas e pelo pátio
+  // do fundo do estacionamento até a esplanada, pelos corredores de pedestres
+  // (sem vagas) e pelo pátio; ninguém atravessa por cima dos carros
   const lot = city.lot
-  for (const z of [-90, -30, 30, 90]) {
+  for (const z of lot.walkways) {
     specs.push({
       points: [
-        [lot.x1 - 70, z],
+        [lot.x0 + 12, z],
         [lot.x1, z],
         [city.forecourt.x1 - 10, z * 0.75],
         // termina na fachada, junto aos portões do lado oeste
         [-62 - 61, z * 0.5],
       ],
       closed: false,
-      people: 70,
-      spread: 2.6,
+      people: 80,
+      spread: 1.2,
     })
   }
-  // gente saindo do carro e andando pelos corredores
-  for (const x of lot.aisles.filter((_, i) => i % 2 === 1)) {
-    specs.push({
-      points: [
-        [x - 1.5, lot.z0 + 10],
-        [x - 1.5, lot.z1 - 10],
-      ],
-      closed: false,
-      people: 14,
-      spread: 1.4,
-    })
-  }
+  // gente saindo do carro: anda pela beira do corredor, junto ao nariz dos
+  // carros parados, fora da faixa por onde os carros passam
+  lot.aisles.forEach((x, i) => {
+    if (i % 2 === 0) return
+    for (const side of [-1, 1]) {
+      specs.push({
+        points: [
+          [x + side * 2.9, lot.z0 + 10],
+          [x + side * 2.9, lot.z1 - 10],
+        ],
+        closed: false,
+        people: 6,
+        spread: 0.3,
+      })
+    }
+  })
 
   // calçadões e o caminho do lago
   for (const walk of city.walks) {

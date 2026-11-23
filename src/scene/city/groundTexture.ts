@@ -1,6 +1,6 @@
 import { BOWL } from '../../config/stadium'
 import type { Rect, Vec2 } from '../../lib/city/geometry'
-import { type CityLayout, HALF, PLAZA_D, type Road, SIDEWALK, WORLD } from '../../lib/city/layout'
+import { type CityLayout, HALF, PLAZA_D, type Road, SIDEWALK, WALKWAY_HALF, WORLD } from '../../lib/city/layout'
 import { fbm } from '../../lib/random'
 
 export const FAR_GROUND = '#0d100c'
@@ -192,9 +192,18 @@ export function drawGround(ctx: Ctx, size: number, city: CityLayout) {
     }
   }
   ctx.stroke()
-  // passarelas de pedestres do estacionamento até o pátio
-  ctx.fillStyle = 'rgba(214, 206, 190, 0.9)'
-  for (let z = -90; z <= 90; z += 60) ctx.fillRect(px(lot.x1 - 30), px(z - 2), 30 * S, 4 * S)
+  // corredores de pedestres de ponta a ponta, com faixa zebrada onde
+  // cruzam os corredores dos carros
+  for (const z of lot.walkways) {
+    ctx.fillStyle = 'rgba(206, 198, 182, 0.92)'
+    ctx.fillRect(px(lot.x0), px(z - WALKWAY_HALF), (lot.x1 - lot.x0) * S, WALKWAY_HALF * 2 * S)
+    ctx.fillStyle = 'rgba(244, 242, 236, 0.95)'
+    for (const aisle of lot.aisles) {
+      for (let x = aisle - 3.3; x < aisle + 3.3; x += 1.1) {
+        ctx.fillRect(px(x), px(z - WALKWAY_HALF + 0.3), 0.55 * S, (WALKWAY_HALF * 2 - 0.6) * S)
+      }
+    }
+  }
 
   ctx.strokeStyle = '#2f3237'
   for (const road of city.roads) {

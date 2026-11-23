@@ -78,8 +78,13 @@ export interface ParkingLot extends Rect {
   backLane: number
   /** x da entrada (ao sul) e da saída (ao norte) */
   gate: number
+  /** z dos corredores de pedestres que cruzam o estacionamento (sem vagas) */
+  walkways: number[]
   stalls: Stall[]
 }
+
+/** meia largura dos corredores de pedestres do estacionamento */
+export const WALKWAY_HALF = 2.4
 
 export type BuildingKind = 'house' | 'apartment' | 'tower'
 
@@ -411,6 +416,10 @@ function buildLot(rand: Random): ParkingLot {
 
   const aisles: number[] = []
   const stalls: Stall[] = []
+  // corredores de pedestres de leste a oeste, ligando o fundo do estacionamento
+  // ao pátio do estádio; nenhuma vaga fica em cima deles
+  const walkways = [-90, -30, 30, 90]
+  const onWalkway = (z: number) => walkways.some((w) => Math.abs(z - w) < WALKWAY_HALF + 1.3)
   for (let k = 0; k < count; k++) {
     const mx = spec.x0 + margin + module * k
     aisles.push(mx + 8.5)
@@ -420,6 +429,7 @@ function buildLot(rand: Random): ParkingLot {
     ] as const) {
       for (let i = 0; i < perRow; i++) {
         const z = rowStart + side * (rowMargin + 1.3 + i * 2.6)
+        if (onWalkway(z)) continue
         // lotado perto do estádio, com mais vagas livres no fundo
         const nearPlaza = (cx - spec.x0) / (spec.x1 - spec.x0)
         const occupied = rand() < 0.5 + nearPlaza * 0.42
@@ -437,6 +447,7 @@ function buildLot(rand: Random): ParkingLot {
     frontLane: spec.nearZ + side * 3.5,
     backLane: spec.farZ - side * 3.5,
     gate: spec.gate,
+    walkways,
     stalls,
   }
 }
