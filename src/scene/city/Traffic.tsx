@@ -196,20 +196,27 @@ export function Traffic() {
 
   useFrame((_, delta) => {
     clock.current += Math.min(delta, 0.1)
+    // sem arrays nem funções novas por quadro: nada para o coletor de lixo
     const { dummy, hidden, sample } = scratch.current
-    const pools = [beams.current!, glows.current!]
+    const beamMesh = beams.current!
+    const glowMesh = glows.current!
+    const bodyMesh = bodies.current!
     const headPos = parts.heads.getAttribute('position') as BufferAttribute
     const headColor = parts.heads.getAttribute('aColor') as BufferAttribute
     const tailPos = parts.tails.getAttribute('position') as BufferAttribute
     const tailColor = parts.tails.getAttribute('aColor') as BufferAttribute
-    plan.cars.forEach((car, i) => {
+    const cars = plan.cars
+    for (let i = 0; i < cars.length; i++) {
+      const car = cars[i]
       sampleTrack(plan.tracks[car.track], clock.current + car.offset, sample)
       dummy.position.set(sample.x, 0, sample.z)
       dummy.rotation.set(0, sample.heading, 0)
       dummy.updateMatrix()
-      bodies.current!.setMatrixAt(i, dummy.matrix)
+      bodyMesh.setMatrixAt(i, dummy.matrix)
       // estacionado com o motor desligado: faróis, lanternas e manchas apagam
-      for (const mesh of pools) mesh.setMatrixAt(i, sample.lights ? dummy.matrix : hidden)
+      const pool = sample.lights ? dummy.matrix : hidden
+      beamMesh.setMatrixAt(i, pool)
+      glowMesh.setMatrixAt(i, pool)
       const sx = Math.sin(sample.heading)
       const sz = Math.cos(sample.heading)
       headPos.setXYZ(i, sample.x + sx * 2.3, 0.72, sample.z + sz * 2.3)
@@ -218,10 +225,14 @@ export function Traffic() {
       const brake = sample.braking ? BRAKE_BOOST : 1
       headColor.setXYZ(i, HEAD.r * on, HEAD.g * on, HEAD.b * on)
       tailColor.setXYZ(i, TAIL.r * on * brake, TAIL.g * on * brake, TAIL.b * on * brake)
-    })
-    bodies.current!.instanceMatrix.needsUpdate = true
-    for (const mesh of pools) mesh.instanceMatrix.needsUpdate = true
-    for (const attr of [headPos, headColor, tailPos, tailColor]) attr.needsUpdate = true
+    }
+    bodyMesh.instanceMatrix.needsUpdate = true
+    beamMesh.instanceMatrix.needsUpdate = true
+    glowMesh.instanceMatrix.needsUpdate = true
+    headPos.needsUpdate = true
+    headColor.needsUpdate = true
+    tailPos.needsUpdate = true
+    tailColor.needsUpdate = true
   })
 
   const count = plan.cars.length

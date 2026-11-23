@@ -58,6 +58,8 @@ export function Experience() {
     >
       {!TIER_LOCKED && (
         <PerformanceMonitor
+          // fluidez primeiro: desce de nível já abaixo de 50 qps (numa tela de 60 Hz)
+          bounds={(refresh) => (refresh > 100 ? [60, 100] : [50, 60])}
           onDecline={() => setTier((t) => step(t, -1))}
           onIncline={() => setTier((t) => step(t, 1))}
           flipflops={4}

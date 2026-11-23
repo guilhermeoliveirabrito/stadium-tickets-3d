@@ -14,6 +14,7 @@ export function CameraRig() {
   const rig = useRef<Pose>({ ...(introDisabled ? aerialPose(1.6) : INTRO_START) })
   const timeline = useRef<gsap.core.Timeline | null>(null)
   const motion = useRef({ parallaxX: 0, parallaxY: 0, idle: 0 })
+  const aerialTarget = useRef(aerialPose(1.6))
 
   useEffect(() => {
     if (phase !== 'intro') return
@@ -50,7 +51,7 @@ export function CameraRig() {
 
     if (aerial) {
       // acompanha redimensionamentos da janela
-      const target = aerialPose(state.size.width / state.size.height)
+      const target = aerialPose(state.size.width / state.size.height, aerialTarget.current)
       pose.dist = MathUtils.damp(pose.dist, target.dist, 3, delta)
       pose.tx = MathUtils.damp(pose.tx, target.tx, 3, delta)
       m.idle += delta

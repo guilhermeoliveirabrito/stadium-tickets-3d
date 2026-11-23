@@ -24,13 +24,11 @@ export const IS_MOBILE =
   window.matchMedia('(pointer: coarse)').matches
 
 export const QUALITY: Record<Tier, Quality> = {
-  // No PC o nível baixo fica na resolução nativa, com MSAA 2x: renderizar
-  // abaixo de 1x e esticar (o que acontecia em telas Full HD) deixava o
-  // serrilhado em blocos maiores. No celular a tela densa já esconde boa
-  // parte do serrilhado, então vale o SMAA, mais barato.
-  low: IS_MOBILE
-    ? { pixels: 1.1e6, minDpr: 0.75, msaa: 0, smaa: true, ao: false, bloomLevels: 5 }
-    : { pixels: 1.1e6, minDpr: 1, msaa: 2, smaa: false, ao: false, bloomLevels: 5 },
+  // No PC o nível baixo fica na resolução nativa: renderizar abaixo de 1x e
+  // esticar (o que acontecia em telas Full HD) deixava o serrilhado em blocos
+  // maiores. O antisserrilhado é o SMAA, bem mais leve que o MSAA; o que
+  // cintilava de longe (cadeiras, carros, lâmpadas) já é estável sem MSAA.
+  low: { pixels: 1.1e6, minDpr: IS_MOBILE ? 0.75 : 1, msaa: 0, smaa: true, ao: false, bloomLevels: 5 },
   medium: { pixels: 2.1e6, minDpr: 1, msaa: 4, smaa: false, ao: false, bloomLevels: 7 },
   high: { pixels: 3.2e6, minDpr: 1, msaa: 4, smaa: false, ao: true, bloomLevels: 8 },
 }
