@@ -1,4 +1,5 @@
 import { useFrame } from '@react-three/fiber'
+import { QUALITY, type Tier } from '../../config/quality'
 import { AdBoards } from './AdBoards'
 import { Facade } from './Facade'
 import { Fireworks } from './Fireworks'
@@ -17,14 +18,14 @@ function NeonClock() {
   return null
 }
 
-export function Stadium() {
+export function Stadium({ tier }: { tier: Tier }) {
   return (
     <group>
       <Pitch />
       <AdBoards />
       <Stands />
       <LedRibbons />
-      <Seats />
+      <Seats detailBudget={QUALITY[tier].detailSeats} />
       <Skyboxes />
       <Roof />
       <Facade />

@@ -15,6 +15,8 @@ interface Quality {
   smaa: boolean
   ao: boolean
   bloomLevels: number
+  /** quantas cadeiras perto da câmera podem usar o modelo detalhado */
+  detailSeats: number
 }
 
 const nav = navigator as Navigator & { deviceMemory?: number }
@@ -28,9 +30,17 @@ export const QUALITY: Record<Tier, Quality> = {
   // esticar (o que acontecia em telas Full HD) deixava o serrilhado em blocos
   // maiores. O antisserrilhado é o SMAA, bem mais leve que o MSAA; o que
   // cintilava de longe (cadeiras, carros, lâmpadas) já é estável sem MSAA.
-  low: { pixels: 1.1e6, minDpr: IS_MOBILE ? 0.75 : 1, msaa: 0, smaa: true, ao: false, bloomLevels: 5 },
-  medium: { pixels: 2.1e6, minDpr: 1, msaa: 4, smaa: false, ao: false, bloomLevels: 7 },
-  high: { pixels: 3.2e6, minDpr: 1, msaa: 4, smaa: false, ao: true, bloomLevels: 8 },
+  low: {
+    pixels: 1.1e6,
+    minDpr: IS_MOBILE ? 0.75 : 1,
+    msaa: 0,
+    smaa: true,
+    ao: false,
+    bloomLevels: 5,
+    detailSeats: IS_MOBILE ? 1500 : 2200,
+  },
+  medium: { pixels: 2.1e6, minDpr: 1, msaa: 4, smaa: false, ao: false, bloomLevels: 7, detailSeats: 4600 },
+  high: { pixels: 3.2e6, minDpr: 1, msaa: 4, smaa: false, ao: true, bloomLevels: 8, detailSeats: 7600 },
 }
 
 /** Nome da placa de vídeo, quando o navegador informa. */

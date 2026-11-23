@@ -76,7 +76,7 @@ export function Experience() {
       <PixelScale />
       <Atmosphere />
       {devCamera ? <DevCamera /> : <CameraRig />}
-      <Stadium />
+      <Stadium tier={tier} />
       <City />
       <SelectionSync />
       <BlockPicker />

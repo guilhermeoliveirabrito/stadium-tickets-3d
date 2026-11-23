@@ -1,12 +1,30 @@
 import { useFrame } from '@react-three/fiber'
 import { useLayoutEffect, useMemo, useRef } from 'react'
-import { DoubleSide, InstancedBufferAttribute, InstancedMesh, MeshLambertMaterial, Object3D } from 'three'
+import {
+  DataTexture,
+  DoubleSide,
+  Frustum,
+  InstancedBufferAttribute,
+  InstancedMesh,
+  Matrix4,
+  MeshLambertMaterial,
+  NearestFilter,
+  Object3D,
+  type PerspectiveCamera,
+  RedFormat,
+  Sphere,
+  UnsignedByteType,
+  Vector3,
+  type WebGLProgramParametersWithUniforms,
+} from 'three'
 import { getLayout } from '../../lib/layout'
+import { once } from '../../lib/once'
 import { getSeatColors } from '../../lib/seatColors'
+import { useExperience } from '../../store/experience'
 import { extendShader, pixelUniforms } from '../pixelScale'
 import { HIGHLIGHT_LINEAR, SELECTION_FUNCTIONS, SELECTION_HEADER, selectionUniforms } from '../selection'
 import { withLocalFill } from './materials'
-import { createSeatGeometry } from './seatGeometry'
+import { createDetailedSeatGeometry, createSeatGeometry } from './seatGeometry'
 
 /**
  * As cadeiras 3D só aparecem de perto. Entre 3 e 2 pixels por cadeira elas
@@ -47,66 +65,267 @@ totalEmissiveRadiance += vec3(0.75) * vSeatPicked * (0.3 + 0.3 * uPulse);
 
 const SEAT_VARYINGS = 'varying float vBlockHl;\nvarying float vSeatHover;\nvarying float vSeatPicked;\nvarying float vSeatDim;'
 
+/** Versão leve: as cadeiras dos blocos que estão na versão detalhada somem daqui. */
+const LIGHT_HANDOFF = /* glsl */ `
+transformed *= 1.0 - step(0.5, texelFetch(uDetailMap, ivec2(int(aSeatBlock + 0.5), 0), 0).r);
+`
+
+/**
+ * Versão detalhada: o pé de metal não leva a cor nem o destaque da cadeira, e
+ * o plástico tem um brilho dos refletores (a mesma luz que vem de cima do
+ * centro do campo, ver floodTerm).
+ */
+const DETAIL_TINT = /* glsl */ `
+diffuseColor.rgb = mix(vec3(0.045, 0.047, 0.052), diffuseColor.rgb, vTint);
+totalEmissiveRadiance *= vTint;
+`
+
+/** de longe o brilho cairia em fios de um pixel na borda do encosto, piscando com o movimento */
+const DETAIL_SHEEN_FADE = /* glsl */ `
+{
+  vec4 sheenView = modelViewMatrix * instanceMatrix * vec4(0.0, 0.6, 0.0, 1.0);
+  vSheenFade = smoothstep(6.0, 14.0, 0.44 / max(-sheenView.z * uPixelAngle, 1e-6));
+}
+`
+
+const DETAIL_SHEEN = /* glsl */ `
+{
+  vec3 sheenLight = normalize((viewMatrix * vec4(0.0, 72.0, 0.0, 1.0)).xyz + vViewPosition);
+  vec3 sheenHalf = normalize(sheenLight + normalize(vViewPosition));
+  float sheen = pow(max(dot(normal, sheenHalf), 0.0), 28.0);
+  reflectedLight.directDiffuse += vec3(0.95, 0.97, 1.0) * sheen * 0.2 * vTint * vSheenFade;
+}
+`
+
 /** maior distância do centro do estádio até uma cadeira */
 const FARTHEST_SEAT = 120
+/** tamanho (pixels) a partir do qual um bloco passa para a versão detalhada, e abaixo do qual volta */
+const DETAIL_IN_PX = 4
+const DETAIL_OUT_PX = 3.4
+/** o maior orçamento (nível alto), com folga para completar o último bloco */
+const DETAIL_CAPACITY = 8600
 
-export function Seats() {
+/** Um texel por bloco: 1 quando o bloco está na versão detalhada. */
+const getDetailMap = once(() => {
+  const { blocks } = getLayout()
+  const texture = new DataTexture(new Uint8Array(blocks.length), blocks.length, 1, RedFormat, UnsignedByteType)
+  texture.magFilter = texture.minFilter = NearestFilter
+  texture.generateMipmaps = false
+  texture.needsUpdate = true
+  return texture
+})
+
+function seatShader(kind: 'light' | 'detail') {
+  const detail = kind === 'detail'
+  return (shader: WebGLProgramParametersWithUniforms) => {
+    Object.assign(shader.uniforms, pixelUniforms, selectionUniforms)
+    if (!detail) shader.uniforms.uDetailMap = { value: getDetailMap() }
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        '#include <common>',
+        `#include <common>
+        uniform float uPixelAngle;
+        attribute float aSeatIndex;
+        attribute float aSeatBlock;
+        ${detail ? 'attribute float aTint;\nvarying float vTint;\nvarying float vSheenFade;' : 'uniform sampler2D uDetailMap;'}
+        ${SEAT_VARYINGS}
+        ${SELECTION_HEADER}
+        ${SELECTION_FUNCTIONS}`,
+      )
+      .replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+        ${SEAT_STATE_VERTEX}
+        ${SEAT_SHRINK}
+        ${detail ? `vTint = aTint;\n${DETAIL_SHEEN_FADE}` : LIGHT_HANDOFF}`,
+      )
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        '#include <common>',
+        `#include <common>\n${SEAT_VARYINGS}\n${SELECTION_HEADER}\n${detail ? 'varying float vTint;\nvarying float vSheenFade;' : ''}`,
+      )
+      .replace(
+        '#include <emissivemap_fragment>',
+        `#include <emissivemap_fragment>\n${SEAT_STATE_FRAGMENT}\n${detail ? DETAIL_TINT : ''}`,
+      )
+      .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>\n${detail ? DETAIL_SHEEN : ''}`)
+  }
+}
+
+/** Esfera envolvendo as cadeiras de cada bloco (para a distância e o enquadramento). */
+const getBlockSpheres = once(() => {
+  const { blocks, seats } = getLayout()
+  const p = new Vector3()
+  return blocks.map((block) => {
+    const center = new Vector3()
+    const end = block.seatStart + block.seatCount
+    for (let i = block.seatStart; i < end; i++) center.add(p.fromArray(seats.position, i * 3))
+    center.divideScalar(Math.max(1, block.seatCount))
+    center.y += 0.6
+    let radius = 0
+    for (let i = block.seatStart; i < end; i++) radius = Math.max(radius, center.distanceTo(p.fromArray(seats.position, i * 3)))
+    return new Sphere(center, radius + 0.8)
+  })
+})
+
+/** Dados por cadeira na ordem do layout (cada bloco é uma faixa contínua). */
+const getSeatData = once(() => {
   const { seats } = getLayout()
-  const ref = useRef<InstancedMesh>(null)
-  const geometry = useMemo(() => createSeatGeometry(), [])
-  const material = useMemo(
-    () =>
-      extendShader(
-        withLocalFill(new MeshLambertMaterial({ side: DoubleSide }), 'seats', 1.15),
-        'seat-shrink',
-        (shader) => {
-          Object.assign(shader.uniforms, pixelUniforms, selectionUniforms)
-          shader.vertexShader = shader.vertexShader
-            .replace(
-              '#include <common>',
-              `#include <common>
-              uniform float uPixelAngle;
-              attribute float aSeatIndex;
-              attribute float aSeatBlock;
-              ${SEAT_VARYINGS}
-              ${SELECTION_HEADER}
-              ${SELECTION_FUNCTIONS}`,
-            )
-            .replace('#include <begin_vertex>', `#include <begin_vertex>\n${SEAT_STATE_VERTEX}\n${SEAT_SHRINK}`)
-          shader.fragmentShader = shader.fragmentShader
-            .replace('#include <common>', `#include <common>\n${SEAT_VARYINGS}\n${SELECTION_HEADER}`)
-            .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>\n${SEAT_STATE_FRAGMENT}`)
-        },
-      ),
-    [],
-  )
+  const colors = getSeatColors(seats)
+  const index = new Float32Array(seats.count)
+  for (let i = 0; i < seats.count; i++) index[i] = i
+  const block = Float32Array.from(seats.block)
+  const matrices = new Float32Array(seats.count * 16)
+  const dummy = new Object3D()
+  for (let i = 0; i < seats.count; i++) {
+    dummy.position.fromArray(seats.position, i * 3)
+    dummy.rotation.set(0, seats.yaw[i], 0)
+    dummy.updateMatrix()
+    dummy.matrix.toArray(matrices, i * 16)
+  }
+  return { colors, index, block, matrices }
+})
+
+const getSeatParts = once(() => ({
+  lightGeometry: createSeatGeometry(),
+  detailGeometry: createDetailedSeatGeometry(),
+  lightMaterial: extendShader(
+    withLocalFill(new MeshLambertMaterial({ side: DoubleSide }), 'seats', 1.15),
+    'seat-light',
+    seatShader('light'),
+  ),
+  detailMaterial: extendShader(withLocalFill(new MeshLambertMaterial(), 'seats-detail', 1.15), 'seat-detail', seatShader('detail')),
+}))
+
+/**
+ * Cadeiras em duas versões: uma leve (quatro triângulos) para todas e uma
+ * detalhada (concha moldada, cerca de 200 triângulos) só para os blocos
+ * enquadrados perto da câmera, do mais perto para o mais longe (o bloco
+ * escolhido primeiro), até o orçamento do nível de qualidade. Na visão geral
+ * nenhum bloco chega perto o bastante e só a versão leve é desenhada.
+ */
+export function Seats({ detailBudget }: { detailBudget: number }) {
+  const { seats, blocks } = getLayout()
+  const light = useRef<InstancedMesh>(null)
+  const detail = useRef<InstancedMesh>(null)
+  const parts = useMemo(() => getSeatParts(), [])
 
   useLayoutEffect(() => {
-    const mesh = ref.current!
-    const dummy = new Object3D()
-    const colors = getSeatColors(seats)
-    for (let i = 0; i < seats.count; i++) {
-      dummy.position.fromArray(seats.position, i * 3)
-      dummy.rotation.set(0, seats.yaw[i], 0)
-      dummy.updateMatrix()
-      mesh.setMatrixAt(i, dummy.matrix)
-    }
-    mesh.instanceColor = new InstancedBufferAttribute(new Float32Array(colors), 3)
-    const index = new Float32Array(seats.count)
-    for (let i = 0; i < seats.count; i++) index[i] = i
-    geometry.setAttribute('aSeatIndex', new InstancedBufferAttribute(index, 1))
-    geometry.setAttribute('aSeatBlock', new InstancedBufferAttribute(Float32Array.from(seats.block), 1))
+    const data = getSeatData()
+    const { lightGeometry, detailGeometry } = getSeatParts()
+    const mesh = light.current!
+    mesh.instanceMatrix.array.set(data.matrices)
+    mesh.instanceColor = new InstancedBufferAttribute(new Float32Array(data.colors), 3)
+    lightGeometry.setAttribute('aSeatIndex', new InstancedBufferAttribute(data.index, 1))
+    lightGeometry.setAttribute('aSeatBlock', new InstancedBufferAttribute(data.block, 1))
     mesh.instanceMatrix.needsUpdate = true
     mesh.computeBoundingSphere()
-  }, [seats, geometry])
 
-  // nem manda as 60 mil cadeiras para a placa de vídeo quando todas estão pequenas demais
-  useFrame((state) => {
-    const mesh = ref.current
-    if (!mesh) return
-    const nearest = Math.max(1, state.camera.position.length() - FARTHEST_SEAT)
-    mesh.visible = 0.44 / (nearest * pixelUniforms.uPixelAngle.value) > 1.9
+    // a versão detalhada recebe só as cadeiras dos blocos escolhidos (ver abaixo)
+    const near = detail.current!
+    near.instanceColor = new InstancedBufferAttribute(new Float32Array(DETAIL_CAPACITY * 3), 3)
+    detailGeometry.setAttribute('aSeatIndex', new InstancedBufferAttribute(new Float32Array(DETAIL_CAPACITY), 1))
+    detailGeometry.setAttribute('aSeatBlock', new InstancedBufferAttribute(new Float32Array(DETAIL_CAPACITY), 1))
+    near.count = 0
+  }, [])
+
+  const lod = useRef({
+    frustum: new Frustum(),
+    matrix: new Matrix4(),
+    forward: new Vector3(),
+    toBlock: new Vector3(),
+    inSet: new Uint8Array(blocks.length),
+    next: new Uint8Array(blocks.length),
+    order: new Int16Array(blocks.length),
+    score: new Float32Array(blocks.length),
   })
 
-  return <instancedMesh ref={ref} args={[geometry, material, seats.count]} frustumCulled={false} />
+  useFrame((state) => {
+    const mesh = light.current
+    const near = detail.current
+    if (!mesh || !near) return
+    const camera = state.camera
+    const pixelAngle = pixelUniforms.uPixelAngle.value
+    // nem manda as 60 mil cadeiras para a placa de vídeo quando todas estão pequenas demais
+    mesh.visible = 0.44 / (Math.max(1, camera.position.length() - FARTHEST_SEAT) * pixelAngle) > 1.9
+
+    const l = lod.current
+    const spheres = getBlockSpheres()
+    const selected = useExperience.getState().selectedBlock
+    let candidates = 0
+    if (mesh.visible) {
+      l.frustum.setFromProjectionMatrix(l.matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse))
+      camera.getWorldDirection(l.forward)
+      const halfFov = ((camera as PerspectiveCamera).fov * Math.PI) / 360
+      for (let b = 0; b < spheres.length; b++) {
+        const sphere = spheres[b]
+        const distance = Math.max(1, camera.position.distanceTo(sphere.center) - sphere.radius)
+        const px = 0.44 / (distance * pixelAngle)
+        if (px < (l.inSet[b] ? DETAIL_OUT_PX : DETAIL_IN_PX) || !l.frustum.intersectsSphere(sphere)) continue
+        // perto do centro da tela vale mais que na borda (onde às vezes só aparece um pedaço do bloco)
+        const off = Math.acos(Math.min(1, l.toBlock.subVectors(sphere.center, camera.position).normalize().dot(l.forward)))
+        l.score[b] = b === selected ? -1 : distance * (1 + (1.2 * off) / halfFov)
+        // inserção ordenada (no máximo 130 blocos, sem alocar nada)
+        let k = candidates++
+        while (k > 0 && l.score[l.order[k - 1]] > l.score[b]) {
+          l.order[k] = l.order[k - 1]
+          k--
+        }
+        l.order[k] = b
+      }
+    }
+    l.next.fill(0)
+    let total = 0
+    for (let k = 0; k < candidates; k++) {
+      const b = l.order[k]
+      const count = blocks[b].seatCount
+      if (total + count > Math.min(detailBudget, DETAIL_CAPACITY)) break
+      total += count
+      l.next[b] = 1
+    }
+    let changed = false
+    for (let b = 0; b < blocks.length && !changed; b++) changed = l.next[b] !== l.inSet[b]
+    if (!changed) return
+
+    // troca de conjunto: copia as cadeiras dos blocos escolhidos para a versão detalhada
+    l.inSet.set(l.next)
+    const data = getSeatData()
+    const { detailGeometry } = getSeatParts()
+    const color = near.instanceColor!
+    const seatIndex = detailGeometry.getAttribute('aSeatIndex') as InstancedBufferAttribute
+    const seatBlock = detailGeometry.getAttribute('aSeatBlock') as InstancedBufferAttribute
+    const map = getDetailMap()
+    const flags = map.image.data as Uint8Array
+    let n = 0
+    for (let b = 0; b < blocks.length; b++) {
+      flags[b] = l.inSet[b] * 255
+      if (!l.inSet[b]) continue
+      const start = blocks[b].seatStart
+      const end = start + blocks[b].seatCount
+      near.instanceMatrix.array.set(data.matrices.subarray(start * 16, end * 16), n * 16)
+      color.array.set(data.colors.subarray(start * 3, end * 3), n * 3)
+      seatIndex.array.set(data.index.subarray(start, end), n)
+      seatBlock.array.set(data.block.subarray(start, end), n)
+      n += end - start
+    }
+    near.count = n
+    for (const [attribute, size] of [
+      [near.instanceMatrix, 16],
+      [color, 3],
+      [seatIndex, 1],
+      [seatBlock, 1],
+    ] as const) {
+      attribute.clearUpdateRanges()
+      attribute.addUpdateRange(0, Math.max(1, n) * size)
+      attribute.needsUpdate = true
+    }
+    map.needsUpdate = true
+  })
+
+  return (
+    <group>
+      <instancedMesh ref={light} args={[parts.lightGeometry, parts.lightMaterial, seats.count]} frustumCulled={false} />
+      <instancedMesh ref={detail} args={[parts.detailGeometry, parts.detailMaterial, DETAIL_CAPACITY]} frustumCulled={false} />
+    </group>
+  )
 }
