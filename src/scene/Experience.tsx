@@ -9,6 +9,7 @@ import { CameraRig } from './CameraRig'
 import { DevCamera } from './DevCamera'
 import { City } from './city/City'
 import { BlockPicker } from './picking/BlockPicker'
+import { OutsideFogSetup } from './outsideFog'
 import { BoxPicker } from './picking/BoxPicker'
 import { BlockLabel, BoxLabel, SeatTooltip } from './picking/Labels'
 import { SeatPicker } from './picking/SeatPicker'
@@ -86,6 +87,7 @@ export function Experience() {
       <BlockLabel />
       <BoxLabel />
       <SeatTooltip />
+      <OutsideFogSetup />
       <PostFX tier={tier} />
       <ReadySignal skipIntro={devCamera} />
       {!compiled && <Precompile onDone={onCompiled} waitForTitle={!devCamera} />}

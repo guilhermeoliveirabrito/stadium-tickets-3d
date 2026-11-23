@@ -1,17 +1,13 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import gsap from 'gsap'
 import { useEffect, useRef } from 'react'
-import { Fog, MathUtils, PerspectiveCamera } from 'three'
-import { FOG } from '../config/world'
+import { MathUtils, PerspectiveCamera } from 'three'
 import { getBlockInfo } from '../lib/blocks'
 import { getSkyboxes } from '../lib/skyboxes'
 import { introDisabled, type Phase, useExperience } from '../store/experience'
 import { aerialPose, blockPose, boxPose, INTRO_START, INTRO_SWEEP, type Pose, sectorPose } from './cameraPoses'
-import { glowFog } from './glowMaterial'
 import { outside } from './outside'
-
-/** além desta distância da câmera nada do estádio fica para trás da neblina "de dentro" */
-const STADIUM_REACH = 140
+import { outsideFog } from './outsideFog'
 
 /** Diferença entre dois ângulos, no intervalo [-π, π]: a câmera sempre gira pelo lado mais curto. */
 function angleDelta(from: number, to: number) {
@@ -153,19 +149,12 @@ export function CameraRig() {
       camera.updateProjectionMatrix()
     }
 
-    // Dentro do estádio a neblina se fecha logo depois da última arquibancada:
-    // a cidade some aos poucos enquanto a câmera desce e, quando não aparece
-    // mais, deixa de ser desenhada.
-    const fog = state.scene.fog
-    if (fog instanceof Fog) {
-      const reach = camera.position.length() + STADIUM_REACH
-      fog.near = MathUtils.lerp(FOG.near, reach, pose.inside)
-      fog.far = MathUtils.lerp(FOG.far, reach + 280, pose.inside)
-      glowFog.uGlowFogNear.value = fog.near
-      glowFog.uGlowFogFar.value = MathUtils.lerp(FOG.far * 1.4, fog.far, pose.inside)
-      glowFog.uGlowFogAmount.value = MathUtils.lerp(0.75, 1, pose.inside)
-    }
-    outside.visible = pose.inside < 0.995
+    // Entrando no estádio, tudo o que fica fora dele se apaga na neblina
+    // (ver outsideFog.ts) enquanto a câmera desce; coberto por inteiro, o
+    // entorno deixa de ser desenhado e animado.
+    const close = 1 - MathUtils.smoothstep(camera.position.length(), 220, 380)
+    outsideFog.value = pose.inside * close
+    outside.visible = outsideFog.value < 0.999
 
     // imagem deslocada para cima (painel embaixo, no celular)
     const v = view.current

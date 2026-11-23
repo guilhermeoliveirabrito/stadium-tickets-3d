@@ -1,23 +1,11 @@
 import { AdditiveBlending, BufferAttribute, BufferGeometry, ShaderMaterial } from 'three'
 import { FOG } from '../config/world'
+import { OUTSIDE_FOG_RADII, outsideFog } from './outsideFog'
 import { pixelUniforms } from './pixelScale'
-
-/**
- * Neblina dos brilhos, acompanhando a da cena (os brilhos usam um shader
- * próprio). Ao entrar no estádio ela se fecha e apaga as luzes da cidade.
- */
-export const glowFog = {
-  uGlowFogNear: { value: FOG.near },
-  uGlowFogFar: { value: FOG.far * 1.4 },
-  /** quanto do brilho a neblina apaga no máximo */
-  uGlowFogAmount: { value: 0.75 },
-}
 
 const vertex = /* glsl */ `
 uniform float uPixelAngle;
-uniform float uGlowFogNear;
-uniform float uGlowFogFar;
-uniform float uGlowFogAmount;
+uniform float uOutsideFog;
 uniform float uSize;
 uniform float uMinPx;
 uniform float uIntensity;
@@ -33,7 +21,10 @@ void main() {
   // desenhado maior que o tamanho real, o brilho cai na mesma proporção, então
   // de longe a luz vira um ponto suave em vez de um pixel estourado.
   float energy = (trueSize * trueSize) / (size * size);
-  float fog = 1.0 - smoothstep(uGlowFogNear, uGlowFogFar, dist) * uGlowFogAmount;
+  float fog = 1.0 - smoothstep(${FOG.near.toFixed(1)}, ${(FOG.far * 1.4).toFixed(1)}, dist) * 0.75;
+  // vistas de dentro do estádio: as luzes de fora somem junto com o entorno (ver outsideFog.ts)
+  vec3 world = (modelMatrix * vec4(position, 1.0)).xyz;
+  fog *= 1.0 - smoothstep(${OUTSIDE_FOG_RADII[0].toFixed(1)}, ${OUTSIDE_FOG_RADII[1].toFixed(1)}, length(world.xz)) * uOutsideFog;
   vColor = aColor * uIntensity * pow(energy, 0.7) * fog;
   gl_PointSize = dot(aColor, aColor) > 0.0 ? size : 0.0;
 }
@@ -55,7 +46,7 @@ export function createGlowMaterial(size: number, intensity: number, minPx = 2.5)
     fragmentShader: fragment,
     uniforms: {
       ...pixelUniforms,
-      ...glowFog,
+      uOutsideFog: outsideFog,
       uSize: { value: size },
       uMinPx: { value: minPx },
       uIntensity: { value: intensity },
