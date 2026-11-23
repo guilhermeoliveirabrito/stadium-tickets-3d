@@ -62,10 +62,14 @@ const BLOCK_HIGHLIGHT = /* glsl */ `
   float led = max(totalEmissiveRadiance.r, max(totalEmissiveRadiance.g, totalEmissiveRadiance.b));
   vec3 glow = ${HIGHLIGHT_LINEAR} * max(0.2 + 0.16 * uPulse * picked, led * 0.8);
   totalEmissiveRadiance = mix(totalEmissiveRadiance, glow, min(1.0, hl * 1.5));
-  float dim = step(0.0, uFocusBlock) * (1.0 - selIs(vBlockId, uFocusBlock));
+  float focus = step(0.0, uFocusBlock);
+  float dim = focus * (1.0 - selIs(vBlockId, uFocusBlock));
   diffuseColor.rgb *= 1.0 - dim * 0.55;
-  // de perto, a faixa de LED inteira viraria um painel azul chapado: fica bem mais fraca
-  totalEmissiveRadiance *= 1.0 - step(0.0, uFocusBlock) * mix(0.8, 0.9, dim);
+  // de perto, a faixa de LED viraria um painel azul chapado ocupando a parte
+  // de baixo da tela: na vista de frente ela fica apagada
+  float ledOff = focus * step(0.05, led);
+  diffuseColor.rgb *= 1.0 - ledOff * 0.88;
+  totalEmissiveRadiance *= 1.0 - focus * mix(0.9, 0.95, dim);
 }
 `
 
