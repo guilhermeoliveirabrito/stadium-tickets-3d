@@ -3,6 +3,7 @@ import {
   BufferGeometry,
   DoubleSide,
   Float32BufferAttribute,
+  MeshLambertMaterial,
   MeshStandardMaterial,
   Shape,
   ShapeGeometry,
@@ -27,7 +28,7 @@ function roundedRect(halfX: number, halfZ: number, r: number) {
 }
 
 function createPitchMaterial() {
-  const material = new MeshStandardMaterial({ roughness: 0.94, metalness: 0 })
+  const material = new MeshLambertMaterial()
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uNoise = { value: getNoiseTexture() }
     Object.assign(shader.uniforms, flashUniforms)

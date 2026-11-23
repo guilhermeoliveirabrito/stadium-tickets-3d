@@ -8,7 +8,7 @@ import {
   CylinderGeometry,
   IcosahedronGeometry,
   InstancedMesh,
-  MeshStandardMaterial,
+  MeshLambertMaterial,
   Object3D,
 } from 'three'
 import { mergeGeometries, mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
@@ -95,7 +95,7 @@ function createPalm() {
 const PALETTE = ['#25421d', '#2f5225', '#3a5f2a', '#476c30', '#55783a', '#2c4b26']
 const BLOSSOM = ['#d6b03c', '#c99a35', '#a8669f']
 
-function TreeVariant({ trees, geometry, material }: { trees: TreeSpec[]; geometry: BufferGeometry; material: MeshStandardMaterial }) {
+function TreeVariant({ trees, geometry, material }: { trees: TreeSpec[]; geometry: BufferGeometry; material: MeshLambertMaterial }) {
   const ref = useRef<InstancedMesh>(null)
   useLayoutEffect(() => {
     const mesh = ref.current!
@@ -141,7 +141,7 @@ function TreeVariant({ trees, geometry, material }: { trees: TreeSpec[]; geometr
 function Trunks({ trees }: { trees: TreeSpec[] }) {
   const ref = useRef<InstancedMesh>(null)
   const geometry = useMemo(() => new CylinderGeometry(0.12, 0.2, 1, 4, 1, true).translate(0, 0.5, 0), [])
-  const material = useMemo(() => new MeshStandardMaterial({ color: '#4f3d2c', roughness: 1 }), [])
+  const material = useMemo(() => new MeshLambertMaterial({ color: '#4f3d2c' }), [])
   useLayoutEffect(() => {
     const mesh = ref.current!
     const dummy = new Object3D()
@@ -182,7 +182,7 @@ export function Trees({ trees }: { trees: TreeSpec[] }) {
     return {
       variants,
       chunks,
-      material: withCityLight(new MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0 }), 'trees', {
+      material: withCityLight(new MeshLambertMaterial({ vertexColors: true }), 'trees', {
         strength: 1.4,
         falloff: 7,
       }),

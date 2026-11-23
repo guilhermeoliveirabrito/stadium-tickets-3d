@@ -4,7 +4,7 @@ import {
   DataTexture,
   LinearFilter,
   LinearMipmapLinearFilter,
-  MeshStandardMaterial,
+  MeshLambertMaterial,
   RGBAFormat,
   SRGBColorSpace,
   UnsignedByteType,
@@ -52,7 +52,7 @@ export function Stands() {
     return {
       geometry: buildStandsGeometry(layout),
       material: withSurfaceNoise(
-        new MeshStandardMaterial({ vertexColors: true, roughness: 0.88, metalness: 0 }),
+        new MeshLambertMaterial({ vertexColors: true }),
         'stands',
         { vertexEmissive: true, fill: 1.15, seatMap: createSeatMap(layout) },
       ),

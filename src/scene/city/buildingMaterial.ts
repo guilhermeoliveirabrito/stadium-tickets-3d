@@ -1,4 +1,4 @@
-import { MeshStandardMaterial } from 'three'
+import { MeshLambertMaterial } from 'three'
 import { addCityLight } from './cityLight'
 
 const vertexHeader = /* glsl */ `
@@ -95,7 +95,7 @@ void windowLight(out float glass, out vec3 emission) {
 `
 
 export function createBuildingMaterial(glow = 2.4) {
-  const material = new MeshStandardMaterial({ roughness: 0.82, metalness: 0.02 })
+  const material = new MeshLambertMaterial()
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uWindowGlow = { value: glow }
     addCityLight(shader, { strength: 1.2, falloff: 4 })

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { MeshStandardMaterial, PlaneGeometry, Shape, ShapeGeometry } from 'three'
+import { MeshLambertMaterial, MeshStandardMaterial, PlaneGeometry, Shape, ShapeGeometry } from 'three'
 import { GROUND_TEXTURE_SIZE } from '../../config/quality'
 import { type CityLayout, WORLD } from '../../lib/city/layout'
 import { canvasTexture } from '../../lib/textures'
@@ -18,12 +18,12 @@ export function Ground({ city }: { city: CityLayout }) {
     return {
       ground: new PlaneGeometry(WORLD, WORLD),
       material: withSurfaceNoise(
-        new MeshStandardMaterial({ map, lightMap, lightMapIntensity: 2.6, roughness: 0.95 }),
+        new MeshLambertMaterial({ map, lightMap, lightMapIntensity: 2.6 }),
         'ground',
         0.22,
       ),
       far: new PlaneGeometry(16000, 16000),
-      farMaterial: new MeshStandardMaterial({ color: FAR_GROUND, roughness: 1 }),
+      farMaterial: new MeshLambertMaterial({ color: FAR_GROUND }),
       lake: new ShapeGeometry(lake, 1),
       water: new MeshStandardMaterial({ color: '#10222b', roughness: 0.05, metalness: 0.2, envMapIntensity: 2 }),
     }

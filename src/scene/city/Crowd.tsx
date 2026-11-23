@@ -6,11 +6,11 @@ import {
   BufferGeometry,
   DataTexture,
   FloatType,
-  OctahedronGeometry,
   InstancedBufferAttribute,
   InstancedBufferGeometry,
-  MeshStandardMaterial,
+  MeshLambertMaterial,
   NearestFilter,
+  OctahedronGeometry,
   RGBAFormat,
 } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
@@ -86,7 +86,7 @@ void crowdWalk() {
 const rotate = (v: string) => `vec3(${v}.x * gWalkFwd.y + ${v}.z * gWalkFwd.x, ${v}.y, -${v}.x * gWalkFwd.x + ${v}.z * gWalkFwd.y)`
 
 function createCrowdMaterial(paths: DataTexture) {
-  const material = new MeshStandardMaterial({ vertexColors: true, roughness: 0.85 })
+  const material = new MeshLambertMaterial({ vertexColors: true })
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uCrowdPaths = { value: paths }
     shader.uniforms.uCrowdTime = crowdTime

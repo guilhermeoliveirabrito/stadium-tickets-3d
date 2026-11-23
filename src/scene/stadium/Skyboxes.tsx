@@ -1,5 +1,12 @@
 import { useMemo } from 'react'
-import { BoxGeometry, BufferGeometry, Color, Matrix4, MeshStandardMaterial } from 'three'
+import {
+  BoxGeometry,
+  BufferGeometry,
+  Color,
+  Matrix4,
+  MeshLambertMaterial,
+  MeshStandardMaterial,
+} from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { SKYBOX } from '../../config/stadium'
 import { frameAt, SEGMENTS, type Frame } from '../../lib/bowl'
@@ -110,7 +117,7 @@ export function Skyboxes() {
       mullions,
       chairs,
       lights,
-      shellMaterial: withSurfaceNoise(new MeshStandardMaterial({ vertexColors: true, roughness: 0.8 }), 'skybox', {
+      shellMaterial: withSurfaceNoise(new MeshLambertMaterial({ vertexColors: true }), 'skybox', {
         strength: 0.1,
         vertexEmissive: true,
         fill: 0.6,
@@ -124,7 +131,7 @@ export function Skyboxes() {
         depthWrite: false,
         envMapIntensity: 1.6,
       }),
-      wallMaterial: new MeshStandardMaterial({ color: '#e7e3dc', roughness: 0.7 }),
+      wallMaterial: new MeshLambertMaterial({ color: '#e7e3dc' }),
       frameMaterial: new MeshStandardMaterial({ color: '#2a2d33', roughness: 0.4, metalness: 0.5 }),
       leather: new MeshStandardMaterial({ color: '#1c1c20', roughness: 0.34, metalness: 0.05 }),
       lightMaterial: new MeshStandardMaterial({ color: '#fff', emissive: '#ffd39b', emissiveIntensity: 4 }),

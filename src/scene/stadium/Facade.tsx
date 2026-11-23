@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { BoxGeometry, MeshStandardMaterial } from 'three'
+import { BoxGeometry, MeshLambertMaterial, MeshStandardMaterial } from 'three'
 import { FACADE } from '../../config/stadium'
 import { pointsAlong, profile, SweepBuilder } from '../../lib/sweep'
 import { FrameInstances } from './FrameInstances'
@@ -60,8 +60,8 @@ export function Facade() {
       // faixa de LED na aresta externa de cada brise
       // faixa larga o bastante para não sumir e reaparecer entre os pixels de longe
       stripGeometry: new BoxGeometry(0.46, stripHeight, 0.08).translate(0, 2.2 + stripHeight / 2, -1.24),
-      stone: withSurfaceNoise(new MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }), 'podium', 0.15),
-      finMaterial: new MeshStandardMaterial({ color: '#efede8', roughness: 0.5, metalness: 0.05 }),
+      stone: withSurfaceNoise(new MeshLambertMaterial({ vertexColors: true }), 'podium', 0.15),
+      finMaterial: new MeshLambertMaterial({ color: '#efede8' }),
       fins: pointsAlong(fins, 3.3),
       finGeometry: new BoxGeometry(0.55, finHeight, 2.4).translate(0, finHeight / 2, 0),
     }

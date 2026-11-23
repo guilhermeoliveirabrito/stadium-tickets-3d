@@ -7,7 +7,7 @@ import {
   Float32BufferAttribute,
   InstancedBufferAttribute,
   InstancedMesh,
-  MeshStandardMaterial,
+  MeshLambertMaterial,
   Object3D,
   Points,
 } from 'three'
@@ -62,7 +62,7 @@ export function Buildings({ buildings }: { buildings: Building[] }) {
       material: createBuildingMaterial(),
       gables,
       roof: createGableGeometry(),
-      roofMaterial: withCityLight(new MeshStandardMaterial({ roughness: 0.85 }), 'roofs', { strength: 1.5, falloff: 9 }),
+      roofMaterial: withCityLight(new MeshLambertMaterial(), 'roofs', { strength: 1.5, falloff: 9 }),
       // luz de sinalização no alto das torres, como brilho (estável de longe)
       beaconPoints: tall.map((b) => [b.x, b.h + 1.2, b.z] as [number, number, number]),
     }

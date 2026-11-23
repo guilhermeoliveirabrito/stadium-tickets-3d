@@ -1,5 +1,12 @@
 import { useMemo } from 'react'
-import { BoxGeometry, Color, Matrix4, MeshBasicMaterial, MeshStandardMaterial } from 'three'
+import {
+  BoxGeometry,
+  Color,
+  Matrix4,
+  MeshBasicMaterial,
+  MeshLambertMaterial,
+  MeshStandardMaterial,
+} from 'three'
 import { ROOF } from '../../config/stadium'
 import { pointsAlong, profile, SweepBuilder } from '../../lib/sweep'
 import { FrameInstances } from './FrameInstances'
@@ -59,11 +66,11 @@ export function Roof() {
       // anel mais largo (e um pouco menos intenso) para não serrilhar de longe
       innerRingMaterial: new MeshBasicMaterial({ color: new Color('#dfe8ff').multiplyScalar(1.9) }),
       shellMaterial: withSurfaceNoise(
-        new MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.05 }),
+        new MeshLambertMaterial({ vertexColors: true }),
         'roof',
         0.08,
       ),
-      steel: new MeshStandardMaterial({ color: '#eeede9', roughness: 0.4, metalness: 0.25 }),
+      steel: new MeshLambertMaterial({ color: '#eeede9' }),
       lamp: new MeshStandardMaterial({
         color: '#d9dde3',
         emissive: '#f4f7ff',
