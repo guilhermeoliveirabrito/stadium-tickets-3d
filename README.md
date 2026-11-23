@@ -21,6 +21,9 @@ Compra de ingressos em 3D para um estádio fictício, numa noite de final. A exp
 - Escolha da cadeira: a câmera fica de frente para o bloco, com as cadeiras livres em azul e as ocupadas em vermelho; a cadeira sob o cursor mostra fileira, número e preço, e a escolhida fica branca. De perto as cadeiras usam um modelo detalhado (concha moldada, encosto curvo e pé de metal)
 - Camarotes VIP à venda: 24 camarotes com interior iluminado (poltronas de couro, bar, adega, TVs), preço do camarote inteiro e por pessoa, disponibilidade, vista própria e reserva
 - Painéis de LED na frente dos anéis e placas em volta do campo com o GitHub do autor
+- Dois telões sobre a cobertura: placar com contagem regressiva para o jogo, a cadeira (ou o camarote) escolhida e, de vez em quando, o GitHub do autor
+- Os dois times aquecendo no gramado, bancos de reservas com a área técnica, rede nos gols e bandeirinhas de escanteio
+- Um dirigível de propaganda com o GitHub do autor dando a volta no estádio e um helicóptero com holofote varrendo o gramado
 - Esc (ou o botão de voltar) retorna uma etapa
 
 | Vista aérea | Estacionamento e avenida |
@@ -38,6 +41,12 @@ Compra de ingressos em 3D para um estádio fictício, numa noite de final. A exp
 | Escolha da cadeira | Camarote VIP |
 | --- | --- |
 | ![Escolha da cadeira de frente para o bloco](docs/cadeira.jpg) | ![Camarote VIP visto de frente](docs/camarote.jpg) |
+
+| Campo, jogadores e bancos | Telão e dirigível |
+| --- | --- |
+| ![Vista atrás do gol com os jogadores aquecendo](docs/campo.jpg) | ![Telão sobre a cobertura e o dirigível com o GitHub](docs/telao.jpg) |
+
+![Abertura com o dirigível e o holofote do helicóptero](docs/dirigivel.jpg)
 
 <p align="center">
   <img src="docs/mobile.jpg" alt="Versão para celular" width="260" />
@@ -95,6 +104,10 @@ React 19, TypeScript e Vite. A cena usa Three.js com React Three Fiber e drei, o
 **Painéis de LED.** A faixa na frente de cada anel é uma tira em volta do estádio inteiro, dividida por bloco. O u da textura é o comprimento percorrido em volta do estádio, e o conteúdo (um canvas com o endereço do GitHub) se repete um número inteiro de vezes, então a volta fecha sem emenda. O shader rola o texto e acende em laranja o trecho na frente do bloco em destaque. Ver `src/scene/stadium/LedRibbons.tsx`.
 
 **Camarotes.** As laterais com camarotes são retas ao longo de x, então o número do camarote de cada pixel sai direto da posição no mundo. Com isso uma luz quente própria ilumina só o interior, e o camarote sob o cursor ou aberto fica mais claro sem nenhum material extra. Ver `src/scene/stadium/Skyboxes.tsx` e `src/lib/skyboxes.ts`.
+
+**Telões.** Cada tela é desenhada num canvas (placar, escolha da pessoa, boas-vindas e o GitHub) que vira a textura dos dois telões. O canvas só é refeito quando a tela troca, e uma vez por segundo durante a contagem regressiva. Ver `src/scene/stadium/Screens.tsx`.
+
+**Rede do gol.** Os fios da rede são calculados no shader, com antisserrilhado. Quando ficam mais finos que um pixel, viram a cobertura média deles, um véu branco: com uma textura recortada, a rede sumia de longe. Ver `src/scene/stadium/Pitch.tsx`.
 
 **Câmera.** Cada etapa é uma pose em coordenadas de órbita (ângulo, elevação, distância e alvo), calculada para o bloco escolhido e para a proporção da tela. O GSAP interpola entre as poses girando pelo lado mais curto, e o plano de corte próximo acompanha a distância. No celular em pé, a imagem é deslocada para cima (`setViewOffset`), para o bloco ficar no espaço acima do painel sem mudar o ângulo da câmera. Ver `src/scene/cameraPoses.ts` e `src/scene/CameraRig.tsx`.
 
