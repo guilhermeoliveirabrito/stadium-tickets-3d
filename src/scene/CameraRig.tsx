@@ -4,8 +4,9 @@ import { useEffect, useRef } from 'react'
 import { Fog, MathUtils, PerspectiveCamera } from 'three'
 import { FOG } from '../config/world'
 import { getBlockInfo } from '../lib/blocks'
+import { getSkyboxes } from '../lib/skyboxes'
 import { introDisabled, type Phase, useExperience } from '../store/experience'
-import { aerialPose, blockPose, INTRO_START, INTRO_SWEEP, type Pose, sectorPose } from './cameraPoses'
+import { aerialPose, blockPose, boxPose, INTRO_START, INTRO_SWEEP, type Pose, sectorPose } from './cameraPoses'
 import { glowFog } from './glowMaterial'
 import { outside } from './outside'
 
@@ -18,14 +19,19 @@ function angleDelta(from: number, to: number) {
 }
 
 /** Pose de cada etapa da escolha para a proporção de tela atual. */
-function poseFor(phase: Phase, block: number, aspect: number, out?: Pose) {
+function poseFor(phase: Phase, block: number, box: number, aspect: number, out?: Pose) {
   if (phase === 'sector' && block >= 0) return sectorPose(getBlockInfo(block), aspect, out)
   if (phase === 'block' && block >= 0) return blockPose(getBlockInfo(block), aspect, out)
+  if (phase === 'box' && box >= 0) return boxPose(getSkyboxes()[box], aspect, out)
   return aerialPose(aspect, out)
 }
 
 /** Duração (s) de cada passagem entre etapas. */
 function transitionDuration(from: Phase, to: Phase) {
+  // de um camarote para o vizinho
+  if (from === 'box' && to === 'box') return 1.3
+  if (to === 'box') return from === 'aerial' ? 2.8 : 2
+  if (from === 'box') return to === 'aerial' ? 2.5 : 1.9
   if (to === 'block') return 2
   if (to === 'aerial') return 2.3
   if (from === 'block') return 1.7
@@ -35,19 +41,20 @@ function transitionDuration(from: Phase, to: Phase) {
   return 2.6
 }
 
-const navigable = (phase: Phase) => phase === 'aerial' || phase === 'sector' || phase === 'block'
+const navigable = (phase: Phase) => phase === 'aerial' || phase === 'sector' || phase === 'block' || phase === 'box'
 
 export function CameraRig() {
   const get = useThree((s) => s.get)
   const phase = useExperience((s) => s.phase)
   const selectedBlock = useExperience((s) => s.selectedBlock)
+  const selectedBox = useExperience((s) => s.selectedBox)
   const introSkipped = useExperience((s) => s.introSkipped)
   const setPhase = useExperience((s) => s.setPhase)
 
   const rig = useRef<Pose>({ ...(introDisabled ? aerialPose(1.6) : INTRO_START) })
   const timeline = useRef<gsap.core.Timeline | null>(null)
   const transition = useRef<gsap.core.Tween | null>(null)
-  const previous = useRef({ phase, block: selectedBlock })
+  const previous = useRef({ phase, block: selectedBlock, box: selectedBox })
   const motion = useRef({ parallaxX: 0, parallaxY: 0, idle: 0, parallax: 1 })
   const view = useRef({ shift: 0, width: 0, height: 0 })
   const settled = useRef(aerialPose(1.6))
@@ -82,13 +89,13 @@ export function CameraRig() {
   // passagens entre visão geral, setor e bloco
   useEffect(() => {
     const from = previous.current
-    previous.current = { phase, block: selectedBlock }
+    previous.current = { phase, block: selectedBlock, box: selectedBox }
     if (!navigable(phase) || !navigable(from.phase)) return
-    if (from.phase === phase && from.block === selectedBlock) return
+    if (from.phase === phase && from.block === selectedBlock && from.box === selectedBox) return
 
     const { width, height } = get().size
     const pose = rig.current
-    const target = poseFor(phase, selectedBlock, width / height)
+    const target = poseFor(phase, selectedBlock, selectedBox, width / height)
     target.az = pose.az + angleDelta(pose.az, target.az)
     transition.current?.kill()
     transition.current = gsap.to(pose, {
@@ -99,7 +106,7 @@ export function CameraRig() {
         transition.current = null
       },
     })
-  }, [phase, selectedBlock, get])
+  }, [phase, selectedBlock, selectedBox, get])
 
   useFrame((state, delta) => {
     const pose = rig.current
@@ -109,7 +116,7 @@ export function CameraRig() {
 
     if (navigable(phase) && !transition.current) {
       // parada numa etapa: acompanha redimensionamentos da janela
-      const target = poseFor(phase, selectedBlock, state.size.width / state.size.height, settled.current)
+      const target = poseFor(phase, selectedBlock, selectedBox, state.size.width / state.size.height, settled.current)
       pose.dist = MathUtils.damp(pose.dist, target.dist, 3, delta)
       pose.tx = MathUtils.damp(pose.tx, target.tx, 3, delta)
       pose.ty = MathUtils.damp(pose.ty, target.ty, 3, delta)
@@ -122,7 +129,7 @@ export function CameraRig() {
 
     // parallax suave com o mouse (menor no setor e nenhum na escolha da
     // cadeira, para a cadeira não fugir do cursor) e uma leve deriva parada
-    m.parallax = MathUtils.damp(m.parallax, aerial ? 1 : phase === 'sector' ? 0.45 : phase === 'block' ? 0 : 1, 2, delta)
+    m.parallax = MathUtils.damp(m.parallax, aerial ? 1 : phase === 'sector' ? 0.45 : phase === 'block' ? 0 : phase === 'box' ? 0.25 : 1, 2, delta)
     m.parallaxX = MathUtils.damp(m.parallaxX, navigable(phase) ? state.pointer.x * m.parallax : 0, 2.5, delta)
     m.parallaxY = MathUtils.damp(m.parallaxY, navigable(phase) ? state.pointer.y * m.parallax : 0, 2.5, delta)
     const drift = aerial ? Math.sin(m.idle * 0.12) * 0.025 : 0

@@ -1,5 +1,7 @@
 import { Html } from '@react-three/drei'
+import { SKYBOX } from '../../config/stadium'
 import { formatPrice, getBlockInfo, seatLabel, seatPosition } from '../../lib/blocks'
+import { getSkyboxes } from '../../lib/skyboxes'
 import { useExperience } from '../../store/experience'
 
 /** Rótulo flutuando sobre o bloco: número, preço e lugares livres. */
@@ -44,6 +46,34 @@ export function SeatTooltip() {
         <span className="seat-tip__status">
           {seat.taken ? 'Ocupada' : hoverSeat === selectedSeat ? `Sua escolha · ${formatPrice(price)}` : formatPrice(price)}
         </span>
+      </div>
+    </Html>
+  )
+}
+
+/** Rótulo do camarote sob o cursor: número e preço (ou "Vendido"). */
+export function BoxLabel() {
+  const phase = useExperience((s) => s.phase)
+  const hoverBox = useExperience((s) => s.hoverBox)
+  const selectedBox = useExperience((s) => s.selectedBox)
+  if (phase !== 'aerial' && phase !== 'sector' && phase !== 'box') return null
+  if (hoverBox < 0 || (phase === 'box' && hoverBox === selectedBox)) return null
+  const box = getSkyboxes()[hoverBox]
+  const [x, , z] = box.position
+  const [nx, nz] = box.normal
+  // na frente do vidro, logo acima dele
+  const d = (SKYBOX.back - SKYBOX.front) / 2
+  const position: [number, number, number] = [x - nx * d, SKYBOX.ceiling + 0.2, z - nz * d]
+
+  return (
+    <Html position={position} center zIndexRange={[4, 0]} style={{ pointerEvents: 'none' }}>
+      <div className="block-label" key={hoverBox}>
+        <span className="block-label__number">Camarote {box.number}</span>
+        <span className="block-label__dot" />
+        <span className="block-label__price" data-sold={box.sold}>
+          {box.sold ? 'Vendido' : formatPrice(box.price)}
+        </span>
+        <span className="block-label__stem" />
       </div>
     </Html>
   )

@@ -512,6 +512,133 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* camarotes ------------------------------------------------------------------- */
+
+.vip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 11px 12px 11px 14px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(120deg, rgba(122, 74, 46, 0.14), rgba(233, 196, 140, 0.2));
+}
+
+.vip p {
+  margin: 0;
+}
+
+.vip__title {
+  font-size: 13.5px;
+  font-weight: 720;
+}
+
+.vip__text {
+  margin-top: 2px !important;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.btn--small {
+  height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.btn--dark {
+  background: var(--ink);
+  color: #fff;
+}
+
+.btn--dark:hover {
+  background: var(--accent-deep);
+}
+
+.panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.browse {
+  display: flex;
+  gap: 6px;
+}
+
+.browse__btn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(15, 17, 21, 0.07);
+  transition: background 0.25s;
+}
+
+.browse__btn:hover {
+  background: rgba(15, 17, 21, 0.14);
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+  font-size: 13px;
+  font-weight: 620;
+}
+
+.status__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--seat-blue);
+  box-shadow: 0 0 0 4px rgba(29, 78, 216, 0.16);
+}
+
+.status[data-sold='true'] .status__dot {
+  background: var(--seat-red);
+  box-shadow: 0 0 0 4px rgba(200, 16, 46, 0.16);
+}
+
+.amenities {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px 12px;
+  margin: 12px 0 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--line);
+  list-style: none;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.amenities li {
+  position: relative;
+  padding-left: 14px;
+}
+
+.amenities li::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 2px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #c28b4f;
+}
+
+.btn--primary[data-done='true'] {
+  background: #1d7a4a;
+}
+
+.block-label__price[data-sold='true'] {
+  color: var(--seat-red);
+}
+
 /* rótulos dentro da cena ---------------------------------------------------- */
 
 .block-label {
@@ -657,5 +784,10 @@
 
   .actions {
     margin-top: 12px;
+  }
+
+  /* camarote no celular: a lista de comodidades sai para sobrar espaço para a vista */
+  .panel--box .amenities {
+    display: none;
   }
 }

@@ -1,5 +1,7 @@
 import { MathUtils } from 'three'
+import { SKYBOX } from '../config/stadium'
 import type { BlockInfo } from '../lib/blocks'
+import type { SkyboxInfo } from '../lib/skyboxes'
 
 export interface Pose {
   az: number
@@ -99,6 +101,32 @@ export function blockPose(info: BlockInfo, aspect: number, out: Pose = emptyPose
   out.tx = x
   out.ty = y - info.height * 0.02
   out.tz = z
+  out.fov = fov
+  out.shift = narrow ? NARROW_SHIFT : 0
+  out.inside = 1
+  return out
+}
+
+/**
+ * Camarote: de frente para o vidro, quase na altura do piso de cima, vendo as
+ * poltronas, o balcão e a parede do fundo; os vizinhos aparecem nas bordas.
+ */
+export function boxPose(box: SkyboxInfo, aspect: number, out: Pose = emptyPose()): Pose {
+  const fov = 34
+  const t = Math.tan(MathUtils.degToRad(fov / 2))
+  const [x, y, z] = box.position
+  const [nx, nz] = box.normal
+  const narrow = isNarrow(aspect)
+  const height = SKYBOX.ceiling - SKYBOX.floor
+  const fitWidth = (SKYBOX.width * (narrow ? 1.06 : 1.75)) / 2 / (t * aspect)
+  const fitHeight = (height * (narrow ? 2.4 : 2.1)) / 2 / t
+  out.az = Math.atan2(-nx, -nz)
+  out.el = 0.09
+  out.dist = Math.max(fitWidth, fitHeight)
+  // alvo um pouco para dentro do camarote, para o fundo também caber
+  out.tx = x + nx * 0.6
+  out.ty = y - 0.15
+  out.tz = z + nz * 0.6
   out.fov = fov
   out.shift = narrow ? NARROW_SHIFT : 0
   out.inside = 1

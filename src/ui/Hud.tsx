@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useExperience } from '../store/experience'
 import { BlockPanel } from './BlockPanel'
+import { BoxPanel } from './BoxPanel'
 import { useBootSequence } from './bootSequence'
 import { Header } from './Header'
 import { IntroOverlay } from './IntroOverlay'
@@ -26,15 +27,16 @@ export function Hud() {
   useEffect(() => {
     document.body.style.cursor = ''
   }, [phase])
-  const choosing = phase === 'aerial' || phase === 'sector' || phase === 'block'
+  const choosing = phase === 'aerial' || phase === 'sector' || phase === 'block' || phase === 'box'
 
   return (
     <div className="hud" data-phase={phase}>
       <IntroOverlay />
-      <Header visible={choosing} step={phase === 'block' ? 1 : 0} />
+      <Header visible={choosing} step={phase === 'block' || phase === 'box' ? 1 : 0} />
       <OverviewPanel visible={phase === 'aerial'} />
       <SectorPanel visible={phase === 'sector'} />
       <BlockPanel visible={phase === 'block'} />
+      <BoxPanel visible={phase === 'box'} />
     </div>
   )
 }

@@ -2,9 +2,10 @@ import { create } from 'zustand'
 
 /**
  * loading → intro → aerial (visão geral) → sector (câmera desce até o setor)
- * → block (de frente para o bloco, escolhendo a cadeira).
+ * → block (de frente para o bloco, escolhendo a cadeira). Os camarotes têm
+ * uma etapa própria, box, aberta da visão geral ou do setor.
  */
-export type Phase = 'loading' | 'intro' | 'aerial' | 'sector' | 'block'
+export type Phase = 'loading' | 'intro' | 'aerial' | 'sector' | 'block' | 'box'
 
 interface ExperienceState {
   phase: Phase
@@ -17,6 +18,13 @@ interface ExperienceState {
   /** cadeira sob o cursor e cadeira escolhida (índice global, -1 = nenhuma) */
   hoverSeat: number
   selectedSeat: number
+  /** camarote sob o cursor e camarote aberto (-1 = nenhum) */
+  hoverBox: number
+  selectedBox: number
+  /** camarote reservado (-1 = nenhum) */
+  reservedBox: number
+  /** etapa para onde volta quem sai do camarote */
+  boxFrom: Phase
   setPhase: (phase: Phase) => void
   setSceneReady: () => void
   skipIntro: () => void
@@ -27,7 +35,11 @@ interface ExperienceState {
   openBlock: () => void
   setHoverSeat: (seat: number) => void
   selectSeat: (seat: number) => void
-  /** volta uma etapa (bloco → setor → visão geral) */
+  setHoverBox: (box: number) => void
+  /** abre a vista de um camarote (da visão geral, do setor ou de outro camarote) */
+  selectBox: (box: number) => void
+  reserveBox: (box: number) => void
+  /** volta uma etapa (bloco → setor → visão geral; camarote → de onde veio) */
   back: () => void
 }
 
@@ -39,6 +51,10 @@ export const useExperience = create<ExperienceState>((set, get) => ({
   selectedBlock: -1,
   hoverSeat: -1,
   selectedSeat: -1,
+  hoverBox: -1,
+  selectedBox: -1,
+  reservedBox: -1,
+  boxFrom: 'aerial',
   setPhase: (phase) => set({ phase }),
   setSceneReady: () => set({ sceneReady: true }),
   skipIntro: () => set({ introSkipped: true }),
@@ -48,20 +64,36 @@ export const useExperience = create<ExperienceState>((set, get) => ({
   selectBlock: (block) => {
     const { phase } = get()
     if (phase !== 'aerial' && phase !== 'sector') return
-    set({ selectedBlock: block, phase: 'sector', hoverSeat: -1, selectedSeat: -1 })
+    set({ selectedBlock: block, phase: 'sector', hoverSeat: -1, selectedSeat: -1, hoverBox: -1 })
   },
   openBlock: () => {
     const { phase, selectedBlock } = get()
-    if (phase === 'sector' && selectedBlock >= 0) set({ phase: 'block', hoverBlock: -1 })
+    if (phase === 'sector' && selectedBlock >= 0) set({ phase: 'block', hoverBlock: -1, hoverBox: -1 })
   },
   setHoverSeat: (hoverSeat) => {
     if (get().hoverSeat !== hoverSeat) set({ hoverSeat })
   },
   selectSeat: (selectedSeat) => set({ selectedSeat }),
-  back: () => {
+  setHoverBox: (hoverBox) => {
+    if (get().hoverBox !== hoverBox) set({ hoverBox })
+  },
+  selectBox: (box) => {
     const { phase } = get()
+    if (phase !== 'aerial' && phase !== 'sector' && phase !== 'box') return
+    set({
+      selectedBox: box,
+      phase: 'box',
+      boxFrom: phase === 'box' ? get().boxFrom : phase,
+      hoverBlock: -1,
+      hoverBox: -1,
+    })
+  },
+  reserveBox: (reservedBox) => set({ reservedBox }),
+  back: () => {
+    const { phase, boxFrom } = get()
     if (phase === 'block') set({ phase: 'sector', hoverSeat: -1, selectedSeat: -1 })
-    else if (phase === 'sector') set({ phase: 'aerial', selectedBlock: -1, hoverBlock: -1 })
+    else if (phase === 'sector') set({ phase: 'aerial', selectedBlock: -1, hoverBlock: -1, hoverBox: -1 })
+    else if (phase === 'box') set({ phase: boxFrom, selectedBox: -1, hoverBox: -1 })
   },
 }))
 

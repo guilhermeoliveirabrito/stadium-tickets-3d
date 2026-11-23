@@ -16,6 +16,8 @@ export function SelectionSync() {
     u.uFocusBlock.value = s.phase === 'block' ? s.selectedBlock : -1
     u.uHoverSeat.value = s.phase === 'block' ? s.hoverSeat : -1
     u.uSelectSeat.value = s.phase === 'block' ? s.selectedSeat : -1
+    u.uHoverBox.value = browsing || s.phase === 'box' ? s.hoverBox : -1
+    u.uSelectBox.value = s.phase === 'box' ? s.selectedBox : -1
     u.uPulse.value = 0.5 + 0.5 * Math.sin(clock.current * 3.2)
   })
   return null
