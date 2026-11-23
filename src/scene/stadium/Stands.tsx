@@ -80,10 +80,16 @@ const getStandsParts = once(() => {
       .replace('#include <common>', `#include <common>\nvarying float vBlockId;\n${SELECTION_HEADER}\n${SELECTION_FUNCTIONS}`)
       .replace('#include <lights_lambert_fragment>', `${BLOCK_HIGHLIGHT}\n#include <lights_lambert_fragment>`)
   })
-  return { geometry: buildStandsGeometry(layout), material }
+  return { geometries: buildStandsGeometry(layout), material }
 })
 
 export function Stands() {
-  const { geometry, material } = useMemo(() => getStandsParts(), [])
-  return <mesh geometry={geometry} material={material} castShadow receiveShadow />
+  const { geometries, material } = useMemo(() => getStandsParts(), [])
+  return (
+    <group>
+      {geometries.map((geometry, i) => (
+        <mesh key={i} geometry={geometry} material={material} />
+      ))}
+    </group>
+  )
 }

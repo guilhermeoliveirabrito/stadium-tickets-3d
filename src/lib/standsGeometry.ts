@@ -85,8 +85,12 @@ function colored(points: P[], palette: Record<Kind, Color>, seatOf?: (row: numbe
   }))
 }
 
+/**
+ * Arquibancadas, uma geometria por segmento do contorno (os três anéis de
+ * cada lado juntos): de perto a câmera enquadra um lado só e descarta os outros.
+ */
 export function buildStandsGeometry(layout: StadiumLayout) {
-  const builder = new SweepBuilder()
+  const builders = SEGMENTS.map(() => new SweepBuilder())
   const half = AISLE_WIDTH / 2
 
   for (const tier of layout.tiers) {
@@ -99,6 +103,7 @@ export function buildStandsGeometry(layout: StadiumLayout) {
     for (const block of layout.blocks) {
       if (block.tier !== tier.spec.id) continue
       const seg = SEGMENTS[block.segment]
+      const builder = builders[block.segment]
       const { s0, s1 } = block
       // O piso e o espelho dos degraus sob as cadeiras levam um tom escuro da
       // cor média das cadeiras do bloco. De longe, as frestas entre cadeiras e
@@ -133,5 +138,5 @@ export function buildStandsGeometry(layout: StadiumLayout) {
       }
     }
   }
-  return builder.build()
+  return builders.map((b) => b.build())
 }
