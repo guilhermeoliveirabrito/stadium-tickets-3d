@@ -1,38 +1,41 @@
 import type { ThreeEvent } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
 import { BufferGeometry, DoubleSide, Float32BufferAttribute, MeshBasicMaterial } from 'three'
+import { SEAT } from '../../config/stadium'
 import { getLayout } from '../../lib/layout'
 import { useExperience } from '../../store/experience'
 
 const canHover = window.matchMedia('(hover: hover)').matches
 
+// Alvo de cada cadeira, no espaço dela (z para o campo): uma rampa da beira
+// do assento até o topo do encosto, da largura da célula inteira. Visto de
+// frente, cobre exatamente o que aparece da cadeira, sem frestas entre vizinhas.
+const PICK_BOTTOM = { y: 0.38, z: 0.26 }
+const PICK_TOP = { y: 0.96, z: -0.31 }
+
 /**
- * Na vista de frente do bloco: um retângulo invisível por cadeira (de pé, na
- * altura de um degrau), só para saber qual cadeira está sob o cursor.
+ * Na vista de frente do bloco: um retângulo invisível por cadeira, só para
+ * saber qual cadeira está sob o cursor.
  */
 function buildSeatProxy(blockIndex: number) {
-  const { blocks, seats, tiers } = getLayout()
+  const { blocks, seats } = getLayout()
   const block = blocks[blockIndex]
-  const tier = tiers.find((t) => t.spec.id === block.tier)!
   const positions: number[] = []
   const triangleSeat: number[] = []
-  const half = 0.25
+  const half = SEAT.pitch / 2
   for (let i = block.seatStart; i < block.seatStart + block.seatCount; i++) {
     const x = seats.position[i * 3]
     const y = seats.position[i * 3 + 1]
     const z = seats.position[i * 3 + 2]
-    const yaw = seats.yaw[i]
-    // eixo X local da cadeira (ao longo da fileira)
-    const tx = Math.cos(yaw)
-    const tz = -Math.sin(yaw)
-    const rise = tier.rows[seats.row[i] - 1]?.rise ?? 0.5
-    const y0 = y + 0.15
-    const y1 = y0 + Math.max(rise, 0.45)
-    const quad: [number, number, number][] = [
-      [x - tx * half, y0, z - tz * half],
-      [x + tx * half, y0, z + tz * half],
-      [x + tx * half, y1, z + tz * half],
-      [x - tx * half, y1, z - tz * half],
+    const c = Math.cos(seats.yaw[i])
+    const s = Math.sin(seats.yaw[i])
+    // ponto local (lx, ly, lz) girado pelo yaw da cadeira
+    const at = (lx: number, ly: number, lz: number) => [x + lx * c + lz * s, y + ly, z - lx * s + lz * c]
+    const quad = [
+      at(-half, PICK_BOTTOM.y, PICK_BOTTOM.z),
+      at(half, PICK_BOTTOM.y, PICK_BOTTOM.z),
+      at(half, PICK_TOP.y, PICK_TOP.z),
+      at(-half, PICK_TOP.y, PICK_TOP.z),
     ]
     for (const k of [0, 1, 2, 0, 2, 3]) positions.push(...quad[k])
     triangleSeat.push(i, i)
