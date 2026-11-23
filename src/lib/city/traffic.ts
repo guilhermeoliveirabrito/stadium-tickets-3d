@@ -114,6 +114,17 @@ function smooth(points: Vec2[], iterations = 3, closed = false): Vec2[] {
   return pts
 }
 
+/**
+ * Arredonda as esquinas só nos últimos metros antes de cada uma, como uma
+ * curva de verdade. Suavizar direto os pontos de virada (que ficam a dezenas
+ * de metros um do outro) faz a curva começar no meio de um trecho e terminar
+ * no meio do outro, e o carro cortava as fileiras de vagas na diagonal, por
+ * cima dos carros parados.
+ */
+function corners(points: Vec2[], spacing = 4): Vec2[] {
+  return smooth(resample(points, spacing))
+}
+
 function join(...parts: Vec2[][]): Vec2[] {
   const out: Vec2[] = []
   for (const part of parts) {
@@ -365,7 +376,7 @@ function lotRoutes(city: CityLayout, { rand, add }: RouteKit) {
     const gateIn = lot.gate + ROAD_LANE
     const front = laneZ(lot.frontLane, gateIn, laneX)
     const back = laneZ(lot.backLane, laneX, lot.gate + ROAD_LANE)
-    const inbound = smooth(
+    const inbound = corners(
       join(sliceByX(westbound, HALF + 60, junctionX + 14), accessNorth.filter(offAvenue), [
         [gateIn, front],
         [laneX, front],
@@ -374,7 +385,7 @@ function lotRoutes(city: CityLayout, { rand, add }: RouteKit) {
     )
     const [onAvenue, inLot] = splitAt(inbound, (p) => p[0] < junctionX + 16)
     const park = stallCurve(approach, [stall.x, stall.z])
-    const outbound = smooth(
+    const outbound = corners(
       join([approach], [[laneX, back], [lot.gate + ROAD_LANE, back]], exitNorth.filter((p) => p[1] < lot.backLane), streetNorth),
     )
     add(
@@ -400,7 +411,7 @@ function lotRoutes(city: CityLayout, { rand, add }: RouteKit) {
     const gateIn = lot.gate - ROAD_LANE
     const back = laneZ(lot.backLane, gateIn, laneX)
     const front = laneZ(lot.frontLane, laneX, lot.gate - ROAD_LANE)
-    const inbound = smooth(
+    const inbound = corners(
       join(streetSouth, exitSouth.filter((p) => p[1] < lot.farZ + 2), [
         [gateIn, back],
         [laneX, back],
@@ -408,7 +419,7 @@ function lotRoutes(city: CityLayout, { rand, add }: RouteKit) {
       ]),
     )
     const park = stallCurve(approach, [stall.x, stall.z])
-    const outbound = smooth(
+    const outbound = corners(
       join(
         [approach],
         [
