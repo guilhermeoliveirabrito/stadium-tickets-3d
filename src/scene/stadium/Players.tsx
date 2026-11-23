@@ -114,7 +114,8 @@ class PassingSquare {
   rand: () => number
   constructor(cx: number, cz: number, radius: number, seed: number) {
     this.spots = [0, 1, 2, 3].map((k) => {
-      const a = (k * Math.PI) / 2 + Math.PI / 4
+      // girada: vistos da lateral, dois jogadores não ficam um atrás do outro
+      const a = (k * Math.PI) / 2 + 0.35
       return { x: cx + Math.cos(a) * radius, z: cz + Math.sin(a) * radius, nx: -Math.cos(a), nz: -Math.sin(a) }
     })
     this.rand = mulberry32(seed)
@@ -231,27 +232,30 @@ class ShootingDrill {
   }
 }
 
-/** Dois jogadores fazendo tiros de corrida de um lado para o outro, virando nas pontas. */
+/**
+ * Dois jogadores fazendo tiros de corrida, cada um na sua raia e no seu
+ * ritmo, virando nas pontas (antes corriam lado a lado, iguais, como uma dupla).
+ */
 class Runners {
-  cx: number
-  cz: number
+  lanes: { cx: number; cz: number; length: number; speed: number; phase: number }[]
   constructor(cx: number, cz: number) {
-    this.cx = cx
-    this.cz = cz
+    this.lanes = [
+      { cx, cz, length: 14, speed: 4.6, phase: 0 },
+      { cx: cx + 3, cz: cz + 7, length: 10, speed: 3.6, phase: 2.6 },
+    ]
   }
   update(t: number, bodies: Body[]) {
-    const length = 14
     const width = 1.6
-    const omega = 4.6 / length
     bodies.forEach((body, i) => {
-      const a = t * omega - i * 0.09
-      body.x = this.cx + Math.cos(a) * length
-      body.z = this.cz + Math.sin(a) * width + i * 1.1
-      const vx = -Math.sin(a) * length
+      const lane = this.lanes[i]
+      const a = t * (lane.speed / lane.length) + lane.phase
+      body.x = lane.cx + Math.cos(a) * lane.length
+      body.z = lane.cz + Math.sin(a) * width
+      const vx = -Math.sin(a) * lane.length
       const vz = Math.cos(a) * width
       body.yaw = Math.atan2(vx, vz)
-      const speed = Math.hypot(vx, vz) / length
-      body.lift = Math.abs(Math.sin(t * 9 + i * 1.7)) * 0.07 * speed
+      const speed = Math.hypot(vx, vz) / lane.length
+      body.lift = Math.abs(Math.sin(t * (8 + i * 1.3) + i * 1.7)) * 0.07 * speed
     })
   }
 }
@@ -274,7 +278,7 @@ const getTeams = once((): Team[] =>
     keeper: KEEPER[k],
     square: new PassingSquare(side * 20, -9, 5.5, 11 + k),
     shooting: new ShootingDrill(side, 101 + k * 37),
-    runners: new Runners(side * 24, 20),
+    runners: new Runners(side * 24, 17),
   })),
 )
 
