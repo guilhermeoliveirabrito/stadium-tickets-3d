@@ -114,7 +114,7 @@ function createCrowdMaterial(paths: DataTexture) {
         // ela cresce na horizontal para ocupar pelo menos ~1,8 pixel
         vec4 crowdView = viewMatrix * vec4(gWalkPos.x, 0.9, gWalkPos.y, 1.0);
         float crowdPixel = max(-crowdView.z, 0.0) * uPixelAngle;
-        crowdLocal.xz *= clamp(1.8 * crowdPixel / 0.46, 1.0, 3.5);
+        crowdLocal.xz *= clamp(1.8 * crowdPixel / 0.46, 1.0, 2.4);
         transformed = ${rotate('crowdLocal')} + vec3(gWalkPos.x, gWalkBob, gWalkPos.y);`,
       )
   }

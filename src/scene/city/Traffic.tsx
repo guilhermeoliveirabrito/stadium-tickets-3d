@@ -15,7 +15,25 @@ import { getCity } from '../../lib/city/layout'
 import { buildTraffic, sampleTrack } from '../../lib/city/traffic'
 import { createGlowGeometry, createGlowMaterial } from '../glowMaterial'
 import { createBeamGeometry, createCarBody, createTailGlowGeometry, getBeamTexture } from './carGeometry'
+import { extendShader, pixelUniforms } from '../pixelScale'
 import { withCityLight } from './cityLight'
+
+/**
+ * De longe os vidros (faixas de ~30 cm) ficam menores que um pixel e
+ * cintilam como pontos escuros sobre os carros; o carro inteiro passa para um
+ * tom médio da lataria, e o reflexo fica mais difuso para não faiscar.
+ */
+const CAR_FAR = /* glsl */ `
+vCarFar = 0.0;
+#if defined( USE_INSTANCING ) && defined( USE_INSTANCING_COLOR )
+{
+  vec4 carView = modelViewMatrix * instanceMatrix * vec4(0.0, 0.8, 0.0, 1.0);
+  float carPixel = max(-carView.z, 0.0) * uPixelAngle;
+  vCarFar = smoothstep(0.1, 0.3, carPixel);
+  vColor.rgb = mix(vColor.rgb, instanceColor.rgb * 0.8, vCarFar);
+}
+#endif
+`
 
 const HEAD = new Color('#fff0d8')
 const TAIL = new Color('#ff1a0d')
@@ -30,10 +48,27 @@ export function Traffic() {
       body: createCarBody(),
       beam: createBeamGeometry(),
       glow: createTailGlowGeometry(),
-      paint: withCityLight(
-        new MeshStandardMaterial({ vertexColors: true, roughness: 0.32, metalness: 0.55, envMapIntensity: 1.3 }),
-        'cars',
-        { strength: 2.4, falloff: 3 },
+      paint: extendShader(
+        withCityLight(
+          new MeshStandardMaterial({ vertexColors: true, roughness: 0.32, metalness: 0.55, envMapIntensity: 1.3 }),
+          'cars',
+          { strength: 2.4, falloff: 3 },
+        ),
+        'car-far',
+        (shader) => {
+          Object.assign(shader.uniforms, pixelUniforms)
+          shader.vertexShader = shader.vertexShader
+            .replace('#include <common>', '#include <common>\nuniform float uPixelAngle;\nvarying float vCarFar;')
+            .replace('#include <color_vertex>', `#include <color_vertex>\n${CAR_FAR}`)
+          shader.fragmentShader = shader.fragmentShader
+            .replace('#include <common>', '#include <common>\nvarying float vCarFar;')
+            .replace(
+              '#include <metalnessmap_fragment>',
+              `#include <metalnessmap_fragment>
+              roughnessFactor = mix(roughnessFactor, 0.78, vCarFar);
+              metalnessFactor = mix(metalnessFactor, 0.15, vCarFar);`,
+            )
+        },
       ),
       // faróis e lanternas como brilhos: nunca menores que 2 pixels, então não
       // piscam de longe (antes eram caixinhas finas e muito brilhantes)
