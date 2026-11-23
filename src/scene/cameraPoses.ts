@@ -15,14 +15,19 @@ export interface Pose {
    * bloco precisa ficar centrado no espaço que sobra.
    */
   shift: number
+  /**
+   * 0 = vista de fora; 1 = câmera dentro do estádio (setor e bloco). Anda
+   * junto com a câmera e fecha a neblina sobre a cidade (ver CameraRig).
+   */
+  inside: number
 }
 
 // Começa sobre o bairro do outro lado da avenida, com o estacionamento em
 // primeiro plano e o skyline atrás do estádio, e contorna pelo sul.
-export const INTRO_START: Pose = { az: -0.78, el: 0.1, dist: 480, tx: -30, ty: 22, tz: 0, fov: 40, shift: 0 }
+export const INTRO_START: Pose = { az: -0.78, el: 0.1, dist: 480, tx: -30, ty: 22, tz: 0, fov: 40, shift: 0, inside: 0 }
 export const INTRO_SWEEP: Partial<Pose> = { az: 0.45, el: 0.28, dist: 360, tx: -20, ty: 8 }
 
-const emptyPose = (): Pose => ({ az: 0, el: 0, dist: 0, tx: 0, ty: 0, tz: 0, fov: 0, shift: 0 })
+const emptyPose = (): Pose => ({ az: 0, el: 0, dist: 0, tx: 0, ty: 0, tz: 0, fov: 0, shift: 0, inside: 0 })
 
 /** Tela estreita (celular em pé): o painel ocupa a parte de baixo. */
 const isNarrow = (aspect: number) => aspect < 0.9
@@ -44,6 +49,7 @@ export function aerialPose(aspect: number, out: Pose = emptyPose()): Pose {
   out.tz = 16
   out.fov = fov
   out.shift = 0
+  out.inside = 0
   return out
 }
 
@@ -71,6 +77,7 @@ export function sectorPose(info: BlockInfo, aspect: number, out: Pose = emptyPos
   out.tz = z
   out.fov = fov
   out.shift = isNarrow(aspect) ? NARROW_SHIFT : 0
+  out.inside = 1
   return out
 }
 
@@ -94,5 +101,6 @@ export function blockPose(info: BlockInfo, aspect: number, out: Pose = emptyPose
   out.tz = z
   out.fov = fov
   out.shift = narrow ? NARROW_SHIFT : 0
+  out.inside = 1
   return out
 }

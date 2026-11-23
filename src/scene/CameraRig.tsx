@@ -1,10 +1,16 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import gsap from 'gsap'
 import { useEffect, useRef } from 'react'
-import { MathUtils, PerspectiveCamera } from 'three'
+import { Fog, MathUtils, PerspectiveCamera } from 'three'
+import { FOG } from '../config/world'
 import { getBlockInfo } from '../lib/blocks'
 import { introDisabled, type Phase, useExperience } from '../store/experience'
 import { aerialPose, blockPose, INTRO_START, INTRO_SWEEP, type Pose, sectorPose } from './cameraPoses'
+import { glowFog } from './glowMaterial'
+import { outside } from './outside'
+
+/** além desta distância da câmera nada do estádio fica para trás da neblina "de dentro" */
+const STADIUM_REACH = 140
 
 /** Diferença entre dois ângulos, no intervalo [-π, π]: a câmera sempre gira pelo lado mais curto. */
 function angleDelta(from: number, to: number) {
@@ -109,6 +115,7 @@ export function CameraRig() {
       pose.ty = MathUtils.damp(pose.ty, target.ty, 3, delta)
       pose.tz = MathUtils.damp(pose.tz, target.tz, 3, delta)
       pose.shift = MathUtils.damp(pose.shift, target.shift, 3, delta)
+      pose.inside = MathUtils.damp(pose.inside, target.inside, 3, delta)
       pose.az += angleDelta(pose.az, target.az) * (1 - Math.exp(-3 * delta))
     }
     if (aerial) m.idle += delta
@@ -138,6 +145,20 @@ export function CameraRig() {
       camera.near = near
       camera.updateProjectionMatrix()
     }
+
+    // Dentro do estádio a neblina se fecha logo depois da última arquibancada:
+    // a cidade some aos poucos enquanto a câmera desce e, quando não aparece
+    // mais, deixa de ser desenhada.
+    const fog = state.scene.fog
+    if (fog instanceof Fog) {
+      const reach = camera.position.length() + STADIUM_REACH
+      fog.near = MathUtils.lerp(FOG.near, reach, pose.inside)
+      fog.far = MathUtils.lerp(FOG.far, reach + 280, pose.inside)
+      glowFog.uGlowFogNear.value = fog.near
+      glowFog.uGlowFogFar.value = MathUtils.lerp(FOG.far * 1.4, fog.far, pose.inside)
+      glowFog.uGlowFogAmount.value = MathUtils.lerp(0.75, 1, pose.inside)
+    }
+    outside.visible = pose.inside < 0.995
 
     // imagem deslocada para cima (painel embaixo, no celular)
     const v = view.current

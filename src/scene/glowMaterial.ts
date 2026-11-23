@@ -2,8 +2,22 @@ import { AdditiveBlending, BufferAttribute, BufferGeometry, ShaderMaterial } fro
 import { FOG } from '../config/world'
 import { pixelUniforms } from './pixelScale'
 
+/**
+ * Neblina dos brilhos, acompanhando a da cena (os brilhos usam um shader
+ * próprio). Ao entrar no estádio ela se fecha e apaga as luzes da cidade.
+ */
+export const glowFog = {
+  uGlowFogNear: { value: FOG.near },
+  uGlowFogFar: { value: FOG.far * 1.4 },
+  /** quanto do brilho a neblina apaga no máximo */
+  uGlowFogAmount: { value: 0.75 },
+}
+
 const vertex = /* glsl */ `
 uniform float uPixelAngle;
+uniform float uGlowFogNear;
+uniform float uGlowFogFar;
+uniform float uGlowFogAmount;
 uniform float uSize;
 uniform float uMinPx;
 uniform float uIntensity;
@@ -19,7 +33,7 @@ void main() {
   // desenhado maior que o tamanho real, o brilho cai na mesma proporção, então
   // de longe a luz vira um ponto suave em vez de um pixel estourado.
   float energy = (trueSize * trueSize) / (size * size);
-  float fog = 1.0 - smoothstep(${FOG.near.toFixed(1)}, ${(FOG.far * 1.4).toFixed(1)}, dist) * 0.75;
+  float fog = 1.0 - smoothstep(uGlowFogNear, uGlowFogFar, dist) * uGlowFogAmount;
   vColor = aColor * uIntensity * pow(energy, 0.7) * fog;
   gl_PointSize = dot(aColor, aColor) > 0.0 ? size : 0.0;
 }
@@ -41,6 +55,7 @@ export function createGlowMaterial(size: number, intensity: number, minPx = 2.5)
     fragmentShader: fragment,
     uniforms: {
       ...pixelUniforms,
+      ...glowFog,
       uSize: { value: size },
       uMinPx: { value: minPx },
       uIntensity: { value: intensity },

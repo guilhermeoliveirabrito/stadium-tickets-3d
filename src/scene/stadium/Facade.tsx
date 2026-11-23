@@ -1,7 +1,9 @@
-import { useMemo } from 'react'
-import { BoxGeometry, MeshLambertMaterial, MeshStandardMaterial } from 'three'
+import { useFrame } from '@react-three/fiber'
+import { useMemo, useRef } from 'react'
+import { BoxGeometry, type Group, MeshLambertMaterial, MeshStandardMaterial } from 'three'
 import { FACADE } from '../../config/stadium'
 import { pointsAlong, profile, SweepBuilder } from '../../lib/sweep'
+import { outside } from '../outside'
 import { FrameInstances } from './FrameInstances'
 import { withSurfaceNoise } from './materials'
 import { createNeonMaterial } from './neon'
@@ -67,8 +69,14 @@ export function Facade() {
     }
   }, [])
 
+  // a fachada fica embaixo da beira da cobertura: de dentro do estádio não aparece
+  const group = useRef<Group>(null)
+  useFrame(() => {
+    if (group.current) group.current.visible = outside.visible
+  })
+
   return (
-    <group>
+    <group ref={group}>
       <mesh geometry={parts.glass} material={parts.glassMaterial} receiveShadow />
       <mesh geometry={parts.podium} material={parts.stone} receiveShadow />
       <mesh geometry={parts.podiumLine} material={parts.podiumNeon} />

@@ -16,6 +16,7 @@ import { getCity } from '../../lib/city/layout'
 import { buildTraffic, sampleTrack } from '../../lib/city/traffic'
 import { once } from '../../lib/once'
 import { createGlowGeometry, createGlowMaterial } from '../glowMaterial'
+import { outside } from '../outside'
 import { createBeamGeometry, createCarBody, createTailGlowGeometry, getBeamTexture } from './carGeometry'
 import { extendShader, pixelUniforms } from '../pixelScale'
 import { withCityLight } from './cityLight'
@@ -199,6 +200,8 @@ export function Traffic() {
 
   useFrame((_, delta) => {
     clock.current += Math.min(delta, 0.1)
+    // fora de vista (câmera dentro do estádio): o relógio segue, nada mais
+    if (!outside.visible) return
     // sem arrays nem funções novas por quadro: nada para o coletor de lixo
     const { dummy, hidden, sample } = scratch.current
     const beamMesh = beams.current!
