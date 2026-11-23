@@ -1,6 +1,6 @@
 import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
-import { BoxGeometry, Color, Matrix4, MeshBasicMaterial, MeshLambertMaterial, PlaneGeometry } from 'three'
+import { BoxGeometry, type CanvasTexture, Color, Matrix4, MeshBasicMaterial, MeshLambertMaterial, PlaneGeometry } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { EVENT } from '../../config/event'
 import { BOWL, ROOF } from '../../config/stadium'
@@ -16,8 +16,11 @@ const WIDTH = 28
 const HEIGHT = 11.5
 /** inclinação para trás: de baixo (arquibancadas) e de cima (visão geral) dá para ler */
 const TILT = 0.6
+// Os desenhos usam coordenadas de 1152 x 480 e são reduzidos para o canvas
+// real: os telões aparecem pequenos na tela e não precisam de mais resolução.
 const CANVAS_W = 1152
 const CANVAS_H = 480
+const SCALE = 2 / 3
 
 type Slide = 'score' | 'pick' | 'arena' | 'github'
 
@@ -82,20 +85,22 @@ function crest(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, c
   text(ctx, label, x, y + r * 0.04, r * 0.62, 800, '#fff', 1)
 }
 
-/** Tempo até o jogo: "19 dias  05:13:22", ou "hoje" e "é hoje" perto da hora. */
-function countdown(now: number) {
-  const left = Date.parse(EVENT.kickoff) - now
-  if (left <= 0) return 'BOLA ROLANDO'
-  const s = Math.floor(left / 1000)
-  const days = Math.floor(s / 86400)
-  const hh = String(Math.floor((s % 86400) / 3600)).padStart(2, '0')
-  const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0')
-  const ss = String(s % 60).padStart(2, '0')
-  const clock = `${hh}:${mm}:${ss}`
-  return days > 0 ? `FALTAM ${days} ${days === 1 ? 'DIA' : 'DIAS'}  ·  ${clock}` : `É HOJE  ·  ${clock}`
+/** Dia do calendário no horário de Brasília (UTC-3), contado a partir de 1970. */
+const brasiliaDay = (ms: number) => Math.floor((ms - 3 * 3600000) / 86400000)
+
+/** Dias até o jogo pelo calendário (só os dias: o placar não precisa ser redesenhado a cada segundo); -1 depois do início. */
+function daysLeft(now = Date.now()) {
+  const kickoff = Date.parse(EVENT.kickoff)
+  return now >= kickoff ? -1 : brasiliaDay(kickoff) - brasiliaDay(now)
 }
 
-function drawScore(ctx: CanvasRenderingContext2D, w: number, h: number) {
+function countdown(days: number) {
+  if (days < 0) return 'BOLA ROLANDO'
+  if (days === 0) return 'É HOJE'
+  return days === 1 ? 'FALTA 1 DIA' : `FALTAM ${days} DIAS`
+}
+
+function drawScore(ctx: CanvasRenderingContext2D, w: number, h: number, days: number) {
   background(ctx, w, h)
   text(ctx, `${EVENT.stage.toUpperCase()}  ·  ${EVENT.season.toUpperCase()}`, w / 2, h * 0.15, 30, 700, '#9fb0d9', 6)
   crest(ctx, w * 0.1, h * 0.5, 66, HOME, EVENT.home.short)
@@ -105,7 +110,7 @@ function drawScore(ctx: CanvasRenderingContext2D, w: number, h: number) {
   text(ctx, '×', w * 0.5, h * 0.49, 64, 500, '#7f8bab')
   text(ctx, '0', w * 0.58, h * 0.5, 112, 800, '#fff')
   text(ctx, EVENT.away.short, w * 0.73, h * 0.5, 92, 800, '#fff', 4)
-  text(ctx, countdown(Date.now()), w / 2, h * 0.83, 40, 700, '#ffb28f', 4)
+  text(ctx, countdown(days), w / 2, h * 0.83, 42, 700, '#ffb28f', 6)
 }
 
 function drawPick(ctx: CanvasRenderingContext2D, w: number, h: number, title: string, detail: string) {
@@ -160,7 +165,6 @@ function createScreenParts() {
 }
 
 const getScreens = once(() => {
-  const canvas = canvasTexture(CANVAS_W, CANVAS_H, drawScore, { anisotropy: 8 })
   const { frame, screen } = createScreenParts()
   // de pé na borda interna da cobertura, inclinado para trás
   const edge = BOWL.halfX + ROOF.inner + 1.2
@@ -173,32 +177,59 @@ const getScreens = once(() => {
       .multiply(new Matrix4().makeRotationZ(-TILT)),
   )
   return {
-    canvas,
     frames: mergeGeometries(placements.map((m) => frame.clone().applyMatrix4(m)))!,
     screens: mergeGeometries(placements.map((m) => screen.clone().applyMatrix4(m)))!,
     frameMaterial: new MeshLambertMaterial({ color: '#1b1e24' }),
-    screenMaterial: new MeshBasicMaterial({ map: canvas, color: new Color(1.25, 1.25, 1.25) }),
+    // já nasce com a textura do placar: trocar de "sem textura" para "com
+    // textura" obrigaria a recompilar o shader no meio da animação
+    screenMaterial: new MeshBasicMaterial({ color: new Color(1.25, 1.25, 1.25), map: scoreTexture('f0') }),
   }
 })
 
-/** Dois telões atrás dos gols: placar com contagem regressiva, a escolha da pessoa e, de vez em quando, o GitHub do autor. */
+/** Uma textura por tela, desenhada uma vez só (e de novo só se o conteúdo mudar). */
+const slides = new Map<Slide, { texture: CanvasTexture; key: string }>()
+
+function scoreTexture(fonts: string) {
+  const days = daysLeft()
+  return slideTexture('score', `${fonts}${days}`, (ctx, w, h) => drawScore(ctx, w, h, days))
+}
+
+/** Textura de uma tela; só é redesenhada quando `key` (o conteúdo) muda. */
+function slideTexture(slide: Slide, key: string, draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void) {
+  let entry = slides.get(slide)
+  if (!entry) {
+    entry = { texture: canvasTexture(CANVAS_W * SCALE, CANVAS_H * SCALE, () => {}, { anisotropy: 8 }), key: '' }
+    slides.set(slide, entry)
+  }
+  if (entry.key !== key) {
+    const canvas = entry.texture.image as HTMLCanvasElement
+    const ctx = canvas.getContext('2d')!
+    ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0)
+    draw(ctx, CANVAS_W, CANVAS_H)
+    entry.texture.needsUpdate = true
+    entry.key = key
+  }
+  return entry.texture
+}
+
+/** Dois telões atrás dos gols: placar com os dias até o jogo, a escolha da pessoa e, de vez em quando, o GitHub do autor. */
 export function Screens() {
   const parts = useMemo(() => getScreens(), [])
   // a última escolha fica guardada: o telão continua mostrando a cadeira (ou o
   // camarote) depois que a pessoa volta para o setor ou para a visão geral
   const ref = useRef({
-    slide: 'score' as Slide,
+    slide: '' as Slide | '',
     since: 0,
     cycle: 0,
-    second: -1,
     pick: null as { title: string; detail: string } | null,
-    dirty: true,
+    fonts: 0,
   })
 
   useEffect(() => {
-    // redesenha quando a fonte terminar de carregar
+    // redesenha as telas quando a fonte terminar de carregar
     document.fonts?.ready.then(() => {
-      ref.current.dirty = true
+      ref.current.fonts++
+      ref.current.slide = ''
     })
   }, [])
 
@@ -209,31 +240,29 @@ export function Screens() {
     const fresh = current && (current.title !== state.pick?.title || current.detail !== state.pick?.detail)
     if (fresh) state.pick = current
     const pick = state.pick
-    let next = state.slide
+    let next: Slide = state.slide || 'score'
     // uma escolha nova aparece na hora
     if (fresh) next = 'pick'
     else if (state.slide === 'score' && t - state.since > SCORE_SECONDS) {
       state.cycle++
       next = state.cycle % GITHUB_EVERY === 0 ? 'github' : pick ? 'pick' : 'arena'
-    } else if (state.slide !== 'score' && t - state.since > EXTRA_SECONDS) next = 'score'
+    } else if (state.slide && state.slide !== 'score' && t - state.since > EXTRA_SECONDS) next = 'score'
+    if (next === state.slide && !fresh) return
 
-    const second = Math.floor(Date.now() / 1000)
-    const changed = next !== state.slide
-    if (changed) {
-      state.slide = next
-      state.since = t
+    // troca de tela: só troca a textura (cada tela já está desenhada)
+    if (next !== state.slide) state.since = t
+    state.slide = next
+    const fonts = `f${state.fonts}`
+    const material = getScreens().screenMaterial
+    if (next === 'score') {
+      material.map = scoreTexture(fonts)
+    } else if (next === 'pick' && pick) {
+      material.map = slideTexture('pick', `${fonts}${pick.title}${pick.detail}`, (ctx, w, h) => drawPick(ctx, w, h, pick.title, pick.detail))
+    } else if (next === 'github') {
+      material.map = slideTexture('github', fonts, drawGithubAd)
+    } else {
+      material.map = slideTexture('arena', fonts, drawArena)
     }
-    // o placar só é redesenhado uma vez por segundo (contagem regressiva)
-    if (!changed && !state.dirty && !fresh && (state.slide !== 'score' || second === state.second)) return
-    state.second = second
-    state.dirty = false
-    const canvas = getScreens().canvas.image as HTMLCanvasElement
-    const ctx = canvas.getContext('2d')!
-    if (state.slide === 'score') drawScore(ctx, canvas.width, canvas.height)
-    else if (state.slide === 'pick' && pick) drawPick(ctx, canvas.width, canvas.height, pick.title, pick.detail)
-    else if (state.slide === 'github') drawGithubAd(ctx, canvas.width, canvas.height)
-    else drawArena(ctx, canvas.width, canvas.height)
-    getScreens().canvas.needsUpdate = true
   })
 
   return (
