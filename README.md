@@ -18,7 +18,9 @@ Compra de ingressos em 3D para um estádio fictício, numa noite de final. A exp
 - Abertura em duas partes: primeiro o texto (Minas Gerais · Brasil, os dois times, Arena Aurora) aparece sobre o fundo preto enquanto a cena carrega; depois o título desce para o canto e a câmera contorna o complexo, com fogos de artifício, até a vista aérea
 - Dados da partida e painel de disponibilidade
 - Escolha do setor: o bloco sob o cursor fica laranja, com número e preço; ao clicar, a câmera desce até a arquibancada e o painel mostra o preço, os lugares livres e o tipo de vista (meio-campo, lateral, diagonal, atrás do gol)
-- Escolha da cadeira: a câmera fica de frente para o bloco, com as cadeiras livres em azul e as ocupadas em vermelho; a cadeira sob o cursor mostra fileira, número e preço, e a escolhida fica branca
+- Escolha da cadeira: a câmera fica de frente para o bloco, com as cadeiras livres em azul e as ocupadas em vermelho; a cadeira sob o cursor mostra fileira, número e preço, e a escolhida fica branca. De perto as cadeiras usam um modelo detalhado (concha moldada, encosto curvo e pé de metal)
+- Camarotes VIP à venda: 24 camarotes com interior iluminado (poltronas de couro, bar, adega, TVs), preço do camarote inteiro e por pessoa, disponibilidade, vista própria e reserva
+- Painéis de LED na frente dos anéis e placas em volta do campo com o GitHub do autor
 - Esc (ou o botão de voltar) retorna uma etapa
 
 | Vista aérea | Estacionamento e avenida |
@@ -33,7 +35,9 @@ Compra de ingressos em 3D para um estádio fictício, numa noite de final. A exp
 | --- | --- |
 | ![Bloco em destaque com o preço](docs/destaque.jpg) | ![Câmera na arquibancada do setor escolhido](docs/setor.jpg) |
 
-![Escolha da cadeira de frente para o bloco](docs/cadeira.jpg)
+| Escolha da cadeira | Camarote VIP |
+| --- | --- |
+| ![Escolha da cadeira de frente para o bloco](docs/cadeira.jpg) | ![Camarote VIP visto de frente](docs/camarote.jpg) |
 
 <p align="center">
   <img src="docs/mobile.jpg" alt="Versão para celular" width="260" />
@@ -86,11 +90,18 @@ React 19, TypeScript e Vite. A cena usa Three.js com React Three Fiber e drei, o
 
 **Escolha de blocos e cadeiras.** O cursor não é testado contra a arquibancada de verdade (dezenas de milhares de triângulos), e sim contra uma superfície invisível com uma rampa por bloco, de poucas centenas de triângulos. Na vista de frente, cada cadeira do bloco vira um retângulo invisível. O destaque não troca materiais: o bloco e a cadeira em destaque são números lidos pelos shaders da arquibancada e das cadeiras, que pintam de laranja o que tiver o mesmo número (ver `src/scene/selection.ts` e `src/scene/picking/`).
 
+**Cadeiras de perto.** Todas as cadeiras existem numa versão leve (quatro triângulos). A cada quadro, os blocos enquadrados perto da câmera (o bloco escolhido primeiro, depois os mais perto e mais no centro da tela) passam para a versão detalhada, de cerca de 200 triângulos, até um orçamento de cadeiras que depende do nível de qualidade. Um mapa de um pixel por bloco diz à versão leve quais cadeiras esconder. Ver `src/scene/stadium/Seats.tsx`.
+
+**Painéis de LED.** A faixa na frente de cada anel é uma tira em volta do estádio inteiro, dividida por bloco. O u da textura é o comprimento percorrido em volta do estádio, e o conteúdo (um canvas com o endereço do GitHub) se repete um número inteiro de vezes, então a volta fecha sem emenda. O shader rola o texto e acende em laranja o trecho na frente do bloco em destaque. Ver `src/scene/stadium/LedRibbons.tsx`.
+
+**Camarotes.** As laterais com camarotes são retas ao longo de x, então o número do camarote de cada pixel sai direto da posição no mundo. Com isso uma luz quente própria ilumina só o interior, e o camarote sob o cursor ou aberto fica mais claro sem nenhum material extra. Ver `src/scene/stadium/Skyboxes.tsx` e `src/lib/skyboxes.ts`.
+
 **Câmera.** Cada etapa é uma pose em coordenadas de órbita (ângulo, elevação, distância e alvo), calculada para o bloco escolhido e para a proporção da tela. O GSAP interpola entre as poses girando pelo lado mais curto, e o plano de corte próximo acompanha a distância. No celular em pé, a imagem é deslocada para cima (`setViewOffset`), para o bloco ficar no espaço acima do painel sem mudar o ângulo da câmera. Ver `src/scene/cameraPoses.ts` e `src/scene/CameraRig.tsx`.
 
 **Desempenho.**
 - Cadeiras, carros, pessoas, árvores, casas e postes são instanciados, e a cena fica em torno de 800 mil triângulos por quadro.
 - Os refletores e o clarão dos fogos são calculados dentro dos materiais que recebem essa luz, então a cena só tem duas luzes reais (luar e ambiente) e nenhum mapa de sombra.
+- Nas vistas de dentro do estádio (setor, bloco e camarote), a neblina se fecha logo depois da última arquibancada enquanto a câmera desce, e então a cidade, o estacionamento, o trânsito, as pessoas na esplanada e a fachada deixam de ser desenhados e animados (ver `src/scene/outside.ts`).
 - Os shaders são compilados em paralelo antes do primeiro quadro (`compileAsync`). Depois, a cena inteira é desenhada uma vez num alvo de 1×1 pixel, só para enviar geometrias e texturas à placa de vídeo. Esse envio espera o título da abertura terminar de aparecer, para não travar a animação.
 - As cadeiras 3D só aparecem de perto. De longe, o degrau mostra a cor de cada cadeira, lida de um mapa filtrado pela placa de vídeo (uma linha por fileira); 60 mil triângulos de um pixel eram a parte mais cara da vista aérea.
 - As superfícies foscas (chão, arquibancadas, cobertura, prédios, árvores) usam um material só de luz difusa, mais barato que o de reflexos.
