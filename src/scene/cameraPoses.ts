@@ -1,5 +1,5 @@
 import { MathUtils } from 'three'
-import { SKYBOX } from '../config/stadium'
+import { BOWL, ROOF, SKYBOX } from '../config/stadium'
 import type { BlockInfo } from '../lib/blocks'
 import type { SkyboxInfo } from '../lib/skyboxes'
 
@@ -34,6 +34,44 @@ const emptyPose = (): Pose => ({ az: 0, el: 0, dist: 0, tx: 0, ty: 0, tz: 0, fov
 /** Tela estreita (celular em pé): o painel ocupa a parte de baixo. */
 const isNarrow = (aspect: number) => aspect < 0.9
 const NARROW_SHIFT = 0.2
+
+/**
+ * Abertura da cobertura, com folga: nas vistas de dentro a câmera nunca passa
+ * daqui na horizontal. Mais longe ela sairia do estádio por cima da
+ * cobertura do lado oposto (mostrando a borda dela e a fachada de fora).
+ */
+const OPENING = ROOF.inner - 10
+
+/** O ponto (x, z) está dentro da abertura (retângulo de cantos arredondados paralelo ao contorno)? */
+function insideOpening(x: number, z: number) {
+  const r = BOWL.radius + OPENING
+  const qx = Math.abs(x) - (BOWL.halfX + OPENING - r)
+  const qz = Math.abs(z) - (BOWL.halfZ + OPENING - r)
+  return Math.hypot(Math.max(qx, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qz), 0) - r <= 0
+}
+
+/**
+ * Se a câmera da pose ficaria fora da abertura da cobertura, aproxima a
+ * câmera do alvo (mantendo o ângulo) até o ponto em que ela sai da abertura.
+ */
+function keepInside(out: Pose) {
+  const cos = Math.cos(out.el)
+  const horizontal = out.dist * cos
+  const dx = Math.sin(out.az)
+  const dz = Math.cos(out.az)
+  if (insideOpening(out.tx + dx * horizontal, out.tz + dz * horizontal)) return out
+  // ponto da reta mais perto do centro do estádio: está dentro da abertura
+  let lo = Math.max(0, -(out.tx * dx + out.tz * dz))
+  if (!insideOpening(out.tx + dx * lo, out.tz + dz * lo)) return out
+  let hi = horizontal
+  for (let i = 0; i < 24; i++) {
+    const mid = (lo + hi) / 2
+    if (insideOpening(out.tx + dx * mid, out.tz + dz * mid)) lo = mid
+    else hi = mid
+  }
+  out.dist = lo / cos
+  return out
+}
 
 /** Vista de cima, enquadrando o estádio e um pouco do parque em qualquer proporção de tela. */
 /** `out` permite reaproveitar o mesmo objeto a cada quadro, sem gerar lixo para o coletor. */
@@ -70,18 +108,22 @@ export function sectorPose(info: BlockInfo, aspect: number, out: Pose = emptyPos
   const fov = 36
   const t = Math.tan(MathUtils.degToRad(fov / 2))
   const [x, y, z] = info.center
-  // uns oito blocos de largura e a altura da arquibancada inteira, com folga
-  const span = Math.max(info.width * 8, 100)
+  // Uns oito blocos de largura e a altura da arquibancada inteira, com folga.
+  // No celular em pé, o bloco e os vizinhos: enquadrar oito blocos numa tela
+  // estreita levava a câmera para fora do estádio e deixava os setores pequenos.
+  const narrow = isNarrow(aspect)
+  const span = narrow ? Math.max(info.width * 3.4, 42) : Math.max(info.width * 8, 100)
   out.az = facing(info)
   out.el = 0.42
-  out.dist = MathUtils.clamp(Math.max(span / 2 / (t * aspect), 46 / t), 110, 240)
+  out.dist = MathUtils.clamp(Math.max(span / 2 / (t * aspect), (narrow ? 30 : 46) / t), narrow ? 70 : 110, 240)
   out.tx = x
-  out.ty = y * 0.6
+  // no celular o bloco fica no meio do espaço entre o topo da tela e o painel
+  out.ty = narrow ? y : y * 0.6
   out.tz = z
   out.fov = fov
-  out.shift = isNarrow(aspect) ? NARROW_SHIFT : 0
+  out.shift = narrow ? 0.16 : 0
   out.inside = 1
-  return out
+  return keepInside(out)
 }
 
 /**
@@ -105,7 +147,7 @@ export function blockPose(info: BlockInfo, aspect: number, out: Pose = emptyPose
   out.fov = fov
   out.shift = narrow ? NARROW_SHIFT : 0
   out.inside = 1
-  return out
+  return keepInside(out)
 }
 
 /**
@@ -131,5 +173,5 @@ export function boxPose(box: SkyboxInfo, aspect: number, out: Pose = emptyPose()
   out.fov = fov
   out.shift = narrow ? NARROW_SHIFT : 0
   out.inside = 1
-  return out
+  return keepInside(out)
 }
