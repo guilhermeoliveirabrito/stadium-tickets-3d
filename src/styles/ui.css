@@ -463,6 +463,55 @@
   outline-offset: 2px;
 }
 
+/* escolha da cadeira -------------------------------------------------------- */
+
+.legend__dot--picked {
+  background: #fff;
+  box-shadow:
+    inset 0 0 0 1px rgba(15, 17, 21, 0.25),
+    0 0 0 2px rgba(255, 90, 31, 0.35);
+}
+
+.picked {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 62px;
+  margin-top: 14px;
+  padding: 11px 14px;
+  border-radius: var(--radius-md);
+  background: rgba(15, 17, 21, 0.05);
+  transition: background 0.3s;
+}
+
+.picked[data-empty='false'] {
+  background: rgba(255, 90, 31, 0.1);
+}
+
+.picked p {
+  margin: 0;
+}
+
+.picked__label {
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 560;
+}
+
+.picked__seat {
+  margin-top: 2px !important;
+  font-size: 15px;
+  font-weight: 720;
+  letter-spacing: -0.01em;
+}
+
+.picked__price {
+  font-size: 17px;
+  font-weight: 760;
+  font-variant-numeric: tabular-nums;
+}
+
 /* rótulos dentro da cena ---------------------------------------------------- */
 
 .block-label {
@@ -502,6 +551,33 @@
   height: 12px;
   margin-left: -1px;
   background: linear-gradient(rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0));
+}
+
+.seat-tip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 7px 12px;
+  border-radius: 12px;
+  background: rgba(15, 17, 21, 0.9);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 10px 24px -6px rgba(0, 0, 0, 0.5);
+  transform: translateY(-50%);
+  animation: label-in 0.2s var(--ease-out) both;
+}
+
+.seat-tip__status {
+  color: #ffb28f;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+.seat-tip[data-taken='true'] .seat-tip__status {
+  color: #ff8d8d;
 }
 
 @keyframes label-in {
@@ -562,6 +638,21 @@
 
   .panel__title {
     font-size: 20px;
+  }
+
+  /* na escolha da cadeira o painel fica baixo, para sobrar espaço para o bloco */
+  .panel--block .panel__text {
+    display: none;
+  }
+
+  .panel--block .legend {
+    margin-top: 10px;
+  }
+
+  .picked {
+    min-height: 54px;
+    margin-top: 12px;
+    padding: 9px 12px;
   }
 
   .actions {

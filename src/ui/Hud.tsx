@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useExperience } from '../store/experience'
+import { BlockPanel } from './BlockPanel'
 import { useBootSequence } from './bootSequence'
 import { Header } from './Header'
 import { IntroOverlay } from './IntroOverlay'
@@ -33,6 +34,7 @@ export function Hud() {
       <Header visible={choosing} step={phase === 'block' ? 1 : 0} />
       <OverviewPanel visible={phase === 'aerial'} />
       <SectorPanel visible={phase === 'sector'} />
+      <BlockPanel visible={phase === 'block'} />
     </div>
   )
 }
