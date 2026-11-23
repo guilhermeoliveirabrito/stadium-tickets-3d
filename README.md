@@ -21,9 +21,9 @@ Compra de ingressos em 3D para um estádio fictício, numa noite de final. A exp
 - Escolha da cadeira: a câmera fica de frente para o bloco, com as cadeiras livres em azul e as ocupadas em vermelho; a cadeira sob o cursor mostra fileira, número e preço, e a escolhida fica branca. De perto as cadeiras usam um modelo detalhado (concha moldada, encosto curvo e pé de metal)
 - Camarotes VIP à venda: 24 camarotes com interior iluminado (poltronas de couro, bar, adega, TVs), preço do camarote inteiro e por pessoa, disponibilidade, vista própria e reserva
 - Painéis de LED na frente dos anéis e placas em volta do campo com o GitHub do autor
-- Dois telões sobre a cobertura: placar com contagem regressiva para o jogo, a cadeira (ou o camarote) escolhida e, de vez em quando, o GitHub do autor
-- Os dois times aquecendo no gramado, bancos de reservas com a área técnica, rede nos gols e bandeirinhas de escanteio
-- Um dirigível de propaganda com o GitHub do autor dando a volta no estádio e um helicóptero com holofote varrendo o gramado
+- Dois telões sobre a cobertura: placar com os dias até o jogo, a cadeira (ou o camarote) escolhida e, de vez em quando, o GitHub do autor
+- Os dois times aquecendo no gramado, cada um com a sua bola (roda de passes, finalização contra o goleiro e tiros de corrida), bancos de reservas com a área técnica, rede nos gols e bandeirinhas de escanteio
+- Um dirigível de propaganda com o GitHub do autor, que passa perto da câmera no começo da abertura e depois dá a volta no estádio, e um helicóptero com holofote varrendo o gramado
 - Esc (ou o botão de voltar) retorna uma etapa
 
 | Vista aérea | Estacionamento e avenida |
@@ -105,7 +105,7 @@ React 19, TypeScript e Vite. A cena usa Three.js com React Three Fiber e drei, o
 
 **Camarotes.** As laterais com camarotes são retas ao longo de x, então o número do camarote de cada pixel sai direto da posição no mundo. Com isso uma luz quente própria ilumina só o interior, e o camarote sob o cursor ou aberto fica mais claro sem nenhum material extra. Ver `src/scene/stadium/Skyboxes.tsx` e `src/lib/skyboxes.ts`.
 
-**Telões.** Cada tela é desenhada num canvas (placar, escolha da pessoa, boas-vindas e o GitHub) que vira a textura dos dois telões. O canvas só é refeito quando a tela troca, e uma vez por segundo durante a contagem regressiva. Ver `src/scene/stadium/Screens.tsx`.
+**Telões.** Cada tela (placar, escolha da pessoa, boas-vindas e o GitHub) é desenhada uma vez num canvas próprio, que vira a textura dos dois telões; trocar de tela só troca a textura. Ver `src/scene/stadium/Screens.tsx`.
 
 **Rede do gol.** Os fios da rede são calculados no shader, com antisserrilhado. Quando ficam mais finos que um pixel, viram a cobertura média deles, um véu branco: com uma textura recortada, a rede sumia de longe. Ver `src/scene/stadium/Pitch.tsx`.
 
