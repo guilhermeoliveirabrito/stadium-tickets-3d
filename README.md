@@ -17,6 +17,9 @@ Compra de ingressos em 3D para um estádio fictício, numa noite de final. A exp
 - Cerca de 3 mil pessoas andando em volta do estádio, chegando pelos portões, vindo do estacionamento e passeando pelas calçadas
 - Abertura em duas partes: primeiro o texto (Minas Gerais · Brasil, os dois times, Arena Aurora) aparece sobre o fundo preto enquanto a cena carrega; depois o título desce para o canto e a câmera contorna o complexo, com fogos de artifício, até a vista aérea
 - Dados da partida e painel de disponibilidade
+- Escolha do setor: o bloco sob o cursor fica laranja, com número e preço; ao clicar, a câmera desce até a arquibancada e o painel mostra o preço, os lugares livres e o tipo de vista (meio-campo, lateral, diagonal, atrás do gol)
+- Escolha da cadeira: a câmera fica de frente para o bloco, com as cadeiras livres em azul e as ocupadas em vermelho; a cadeira sob o cursor mostra fileira, número e preço, e a escolhida fica branca
+- Esc (ou o botão de voltar) retorna uma etapa
 
 | Vista aérea | Estacionamento e avenida |
 | --- | --- |
@@ -26,12 +29,22 @@ Compra de ingressos em 3D para um estádio fictício, numa noite de final. A exp
 | --- | --- |
 | ![Torcida na esplanada](docs/torcida.jpg) | ![Arquibancada norte](docs/arquibancada.jpg) |
 
-<p align="center"><img src="docs/mobile.jpg" alt="Versão para celular" width="260" /></p>
+| Bloco em destaque na visão geral | Setor escolhido |
+| --- | --- |
+| ![Bloco em destaque com o preço](docs/destaque.jpg) | ![Câmera na arquibancada do setor escolhido](docs/setor.jpg) |
+
+![Escolha da cadeira de frente para o bloco](docs/cadeira.jpg)
+
+<p align="center">
+  <img src="docs/mobile.jpg" alt="Versão para celular" width="260" />
+  &nbsp;
+  <img src="docs/mobile-cadeira.jpg" alt="Escolha da cadeira no celular" width="260" />
+</p>
 
 ## Roadmap
 
 - [x] **Etapa 1 · Estádio e vista aérea:** geometria, entorno, iluminação noturna, trânsito, abertura e interface base
-- [ ] **Etapa 2 · Setores e cadeiras:** blocos destacados ao passar o mouse, câmera descendo até o setor escolhido e vista de frente para o bloco, com cadeiras livres e ocupadas
+- [x] **Etapa 2 · Setores e cadeiras:** blocos destacados ao passar o mouse, câmera descendo até o setor escolhido e vista de frente para o bloco, com cadeiras livres e ocupadas
 - [ ] **Etapa 3 · Ingresso e POV:** zoom na cadeira, cartão do ingresso com a prévia da vista, upgrade para camarote, visão em primeira pessoa e checkout
 
 ## Rodando localmente
@@ -70,6 +83,10 @@ React 19, TypeScript e Vite. A cena usa Three.js com React Three Fiber e drei, o
 **Trânsito.** Cada rota vira uma trajetória cronometrada, com aceleração, frenagem, redução nas curvas e paradas (uma vaga, uma ré). Os carros só leem essa tabela com uma defasagem de tempo, então não há simulação a cada quadro. Ver `src/lib/city/traffic.ts`.
 
 **Pedestres.** Os caminhos (voltas pela esplanada, portões, pátio, calçadas) ficam guardados numa textura. Cada pessoa tem só um caminho, uma velocidade e uma defasagem, e o vertex shader calcula posição, rumo e o balanço do passo. No processador, apenas um relógio é atualizado por quadro. Ver `src/lib/city/crowd.ts` e `src/scene/city/Crowd.tsx`.
+
+**Escolha de blocos e cadeiras.** O cursor não é testado contra a arquibancada de verdade (dezenas de milhares de triângulos), e sim contra uma superfície invisível com uma rampa por bloco, de poucas centenas de triângulos. Na vista de frente, cada cadeira do bloco vira um retângulo invisível. O destaque não troca materiais: o bloco e a cadeira em destaque são números lidos pelos shaders da arquibancada e das cadeiras, que pintam de laranja o que tiver o mesmo número (ver `src/scene/selection.ts` e `src/scene/picking/`).
+
+**Câmera.** Cada etapa é uma pose em coordenadas de órbita (ângulo, elevação, distância e alvo), calculada para o bloco escolhido e para a proporção da tela. O GSAP interpola entre as poses girando pelo lado mais curto, e o plano de corte próximo acompanha a distância. No celular em pé, a imagem é deslocada para cima (`setViewOffset`), para o bloco ficar no espaço acima do painel sem mudar o ângulo da câmera. Ver `src/scene/cameraPoses.ts` e `src/scene/CameraRig.tsx`.
 
 **Desempenho.**
 - Cadeiras, carros, pessoas, árvores, casas e postes são instanciados, e a cena fica em torno de 800 mil triângulos por quadro.
