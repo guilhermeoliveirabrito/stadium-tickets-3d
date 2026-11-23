@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber'
 import { useCallback, useEffect, useState } from 'react'
 import { MAX_TIER, pixelRatioFor, START_TIER, type Tier, TIER_LOCKED, TIER_ORDER } from '../config/quality'
 import { NIGHT } from '../config/world'
+import { useExperience } from '../store/experience'
 import { Atmosphere } from './Atmosphere'
 import { CameraRig } from './CameraRig'
 import { DevCamera } from './DevCamera'
@@ -40,6 +41,9 @@ export function Experience() {
   // só começa a desenhar depois que os shaders estiverem compilados
   const [compiled, setCompiled] = useState(false)
   const onCompiled = useCallback(() => setCompiled(true), [])
+  // Com a cena pronta e a abertura de texto ainda na tela (fundo preto), não
+  // há por que desenhar: a placa de vídeo fica livre para a animação do texto.
+  const waiting = useExperience((s) => s.sceneReady && s.phase === 'loading')
 
   useEffect(() => {
     document.documentElement.dataset.quality = tier
@@ -48,7 +52,7 @@ export function Experience() {
   return (
     <Canvas
       className="experience"
-      frameloop={compiled ? 'always' : 'never'}
+      frameloop={compiled && !waiting ? 'always' : 'never'}
       dpr={dpr}
       gl={{ antialias: false, powerPreference: 'high-performance', stencil: false }}
       onCreated={({ gl }) => {

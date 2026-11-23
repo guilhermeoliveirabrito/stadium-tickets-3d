@@ -1,3 +1,4 @@
+// A abertura de texto do index.html repete estes dados (ela aparece antes do JS).
 export const EVENT = {
   stadium: 'Arena Aurora',
   stage: 'Grande final',

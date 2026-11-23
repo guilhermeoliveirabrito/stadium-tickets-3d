@@ -4,75 +4,491 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0b0d12" />
+    <meta name="theme-color" content="#000000" />
     <meta name="description" content="Escolha seu lugar no estádio em 3D: setor, cadeira e a vista exata de onde você vai assistir." />
     <title>Tribuna · Arena Aurora</title>
+    <!-- a fonte é carregada antes do JS para a abertura já aparecer com ela -->
+    <link rel="preload" href="/fonts/inter-latin-wght.woff2" as="font" type="font/woff2" crossorigin />
     <style>
+      @font-face {
+        font-family: 'Inter Variable';
+        font-style: normal;
+        font-display: block;
+        font-weight: 100 900;
+        src: url('/fonts/inter-latin-wght.woff2') format('woff2-variations');
+        unicode-range:
+          U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F,
+          U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+
+      html,
+      body {
+        margin: 0;
+        background: #000;
+      }
+
+      /*
+       * Abertura: começa assim que a página abre, antes do JavaScript, e
+       * esconde o carregamento da cena. Só usa opacity e transform (e um leve
+       * blur), que o navegador anima fora da thread principal: continua lisa
+       * mesmo enquanto o JS monta o estádio.
+       *
+       * Linha do tempo (s): local 0,2 → 2,15 · times 2,05 → 4,0 · título 4,0 → 5,3
+       * O título fica parado (com um brilho passando) até a cena ficar pronta;
+       * aí desce para o canto (ver src/ui/bootSequence.ts) e a câmera começa.
+       */
       .boot {
         position: fixed;
         inset: 0;
-        z-index: 100;
-        display: grid;
-        place-content: center;
-        justify-items: center;
-        gap: 22px;
-        background: radial-gradient(120% 90% at 50% 40%, #1a1d24 0%, #0b0d12 70%);
+        z-index: 5;
+        overflow: hidden;
+        pointer-events: none;
         color: #fff;
         font-family: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
-        transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.9s;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
       }
-      .boot--done {
+
+      .boot--exit {
         opacity: 0;
-        visibility: hidden;
+        transition: opacity 0.9s cubic-bezier(0.4, 0, 0.2, 1);
       }
-      .boot__mark {
-        width: 56px;
-        height: 56px;
-        animation: boot-pulse 1.8s ease-in-out infinite;
-      }
-      .boot__bar {
-        position: relative;
-        width: 160px;
-        height: 2px;
-        overflow: hidden;
-        border-radius: 2px;
-        background: rgba(255, 255, 255, 0.12);
-      }
-      .boot__bar::after {
-        content: '';
+
+      .boot__bg {
         position: absolute;
         inset: 0;
-        width: 40%;
-        border-radius: 2px;
-        background: #ff5a1f;
-        animation: boot-slide 1.2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+        background: radial-gradient(120% 85% at 50% 46%, #0c1020 0%, #05060b 52%, #000 100%);
+        transition: opacity 1.5s cubic-bezier(0.4, 0, 0.2, 1) 0.15s;
       }
-      .boot__label {
+
+      .boot__glow {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 80vmax;
+        height: 80vmax;
+        margin: -40vmax 0 0 -40vmax;
+        background: radial-gradient(closest-side, rgba(255, 90, 31, 0.09), rgba(36, 72, 255, 0.05) 55%, transparent 78%);
+        animation: boot-breathe 7s ease-in-out infinite alternate;
+      }
+
+      .boot__scrim {
+        position: absolute;
+        inset: 45% 0 0;
+        background: linear-gradient(to top, rgba(6, 8, 12, 0.62), rgba(6, 8, 12, 0));
+        opacity: 0;
+        transition: opacity 1.4s ease 0.5s;
+      }
+
+      .boot--handoff .boot__bg {
+        opacity: 0;
+      }
+
+      .boot--handoff .boot__scrim {
+        opacity: 1;
+      }
+
+      .boot__stage {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 0 22px;
+      }
+
+      .boot__stage > * {
+        grid-area: 1 / 1;
+      }
+
+      /* 1. local */
+      .boot__place {
+        display: flex;
+        align-items: center;
+        gap: clamp(12px, 2vw, 20px);
+        margin: 0;
+        font-size: clamp(11px, 1.05vw, 13px);
+        font-weight: 600;
+        letter-spacing: 0.42em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.8);
+        animation: boot-out 0.45s cubic-bezier(0.4, 0, 1, 1) 1.7s both;
+      }
+
+      .boot__place-text {
+        display: inline-block;
+        padding-left: 0.42em;
+        animation: boot-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+      }
+
+      .boot__rule {
+        width: clamp(26px, 6vw, 72px);
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65));
+        transform-origin: right center;
+        animation: boot-rule 1s cubic-bezier(0.22, 1, 0.36, 1) 0.4s both;
+      }
+
+      .boot__rule--end {
+        background: linear-gradient(270deg, transparent, rgba(255, 255, 255, 0.65));
+        transform-origin: left center;
+      }
+
+      /* 2. times */
+      .boot__match {
+        display: flex;
+        align-items: center;
+        gap: clamp(10px, 1.8vw, 20px);
+        font-size: clamp(15px, 2vw, 22px);
+        font-weight: 650;
+        letter-spacing: -0.01em;
+        white-space: nowrap;
+        animation: boot-out 0.45s cubic-bezier(0.4, 0, 1, 1) 3.55s both;
+      }
+
+      .boot__side {
+        display: flex;
+        align-items: center;
+        gap: clamp(8px, 1vw, 12px);
+      }
+
+      .boot__side--home {
+        animation: boot-from-left 0.8s cubic-bezier(0.22, 1, 0.36, 1) 2.05s both;
+      }
+
+      .boot__side--away {
+        animation: boot-from-right 0.8s cubic-bezier(0.22, 1, 0.36, 1) 2.45s both;
+      }
+
+      .boot__vs {
+        color: rgba(255, 255, 255, 0.5);
+        font-weight: 500;
+        animation: boot-pop 0.55s cubic-bezier(0.22, 1, 0.36, 1) 2.3s both;
+      }
+
+      .boot__crest {
+        display: grid;
+        place-items: center;
+        width: clamp(30px, 2.9vw, 40px);
+        height: clamp(30px, 2.9vw, 40px);
+        border-radius: 50%;
+        font-size: clamp(8.5px, 0.8vw, 11px);
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35);
+      }
+
+      .boot__crest--home {
+        background: linear-gradient(140deg, #f0444b, #a3121c);
+      }
+
+      .boot__crest--away {
+        background: linear-gradient(140deg, #4b7bff, #1b3aa8);
+      }
+
+      /* 3. título: é o mesmo texto que fica no canto durante a abertura */
+      .boot__copy {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 0 22px;
+        text-align: center;
+        animation: boot-push 14s cubic-bezier(0.22, 1, 0.36, 1) 4s both;
+      }
+
+      .boot--handoff .boot__copy {
+        inset: auto auto clamp(30px, 8vh, 86px) clamp(22px, 5vw, 76px);
+        max-width: min(1100px, calc(100vw - 44px));
+        align-items: flex-start;
+        justify-content: flex-end;
+        padding: 0;
+        text-align: left;
+        animation: none;
+      }
+
+      .boot__line {
+        width: fit-content;
+        max-width: 100%;
+      }
+
+      .boot__kicker {
         margin: 0;
         font-size: 12px;
-        letter-spacing: 0.24em;
+        font-weight: 650;
+        letter-spacing: 0.26em;
         text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.55);
       }
-      @keyframes boot-slide {
-        from { transform: translateX(-100%); }
-        to { transform: translateX(250%); }
+
+      .boot__kicker > span {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        animation: boot-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) 4s both;
       }
-      @keyframes boot-pulse {
-        50% { transform: scale(0.94); opacity: 0.85; }
+
+      .boot__dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: #ff5a1f;
+      }
+
+      .boot__title {
+        position: relative;
+        margin: 14px 0 16px;
+        font-size: clamp(52px, 9vw, 128px);
+        font-weight: 800;
+        line-height: 0.9;
+        letter-spacing: -0.05em;
+        text-shadow: 0 6px 40px rgba(0, 0, 0, 0.25);
+      }
+
+      /* cada palavra sobe de dentro de uma "janela" (máscara) */
+      .boot__word {
+        display: inline-block;
+        overflow: hidden;
+        padding: 0.08em 0.03em 0.14em;
+        margin: -0.08em -0.03em -0.14em;
+        vertical-align: top;
+      }
+
+      .boot__word > span {
+        display: inline-block;
+        animation: boot-rise 1s cubic-bezier(0.22, 1, 0.36, 1) 4.12s both;
+      }
+
+      .boot__word + .boot__word > span {
+        animation-delay: 4.26s;
+      }
+
+      /* brilho passando pelo título enquanto espera (duas translações opostas, só transform) */
+      .boot__shine {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        transition: opacity 0.3s ease;
+      }
+
+      .boot--handoff .boot__shine {
+        opacity: 0;
+      }
+
+      .boot__shine-window {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 28%;
+        overflow: hidden;
+        -webkit-mask-image: linear-gradient(90deg, transparent, #000 42%, #000 58%, transparent);
+        mask-image: linear-gradient(90deg, transparent, #000 42%, #000 58%, transparent);
+        transform: translateX(-100%);
+        animation: boot-shine-window 4.4s 5.5s infinite;
+      }
+
+      .boot__shine-text {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: calc(100% / 0.28);
+        color: #fff;
+        text-shadow:
+          0 0 22px rgba(255, 206, 160, 0.85),
+          0 0 3px #fff;
+        transform: translateX(28%);
+        animation: boot-shine-text 4.4s 5.5s infinite;
+      }
+
+      .boot__meta {
+        margin: 0;
+        font-size: clamp(14px, 1.4vw, 17px);
+        color: rgba(255, 255, 255, 0.86);
+      }
+
+      .boot__meta > span {
+        display: inline-block;
+        animation: boot-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) 4.6s both;
+      }
+
+      @keyframes boot-in {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+          filter: blur(6px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+          filter: blur(0);
+        }
+      }
+
+      @keyframes boot-out {
+        to {
+          opacity: 0;
+          transform: translateY(-8px);
+        }
+      }
+
+      @keyframes boot-rule {
+        from {
+          opacity: 0;
+          transform: scaleX(0);
+        }
+        to {
+          opacity: 1;
+          transform: scaleX(1);
+        }
+      }
+
+      @keyframes boot-from-left {
+        from {
+          opacity: 0;
+          transform: translateX(-22px);
+          filter: blur(5px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+          filter: blur(0);
+        }
+      }
+
+      @keyframes boot-from-right {
+        from {
+          opacity: 0;
+          transform: translateX(22px);
+          filter: blur(5px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+          filter: blur(0);
+        }
+      }
+
+      @keyframes boot-pop {
+        from {
+          opacity: 0;
+          transform: scale(0.5);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+
+      @keyframes boot-rise {
+        from {
+          opacity: 0;
+          transform: translateY(105%);
+        }
+        45% {
+          opacity: 1;
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+
+      @keyframes boot-push {
+        from {
+          transform: scale(1);
+        }
+        to {
+          transform: scale(1.035);
+        }
+      }
+
+      @keyframes boot-breathe {
+        from {
+          opacity: 0.55;
+          transform: scale(0.92);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1.05);
+        }
+      }
+
+      @keyframes boot-shine-window {
+        0% {
+          transform: translateX(-100%);
+          animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+        }
+        38%,
+        100% {
+          transform: translateX(357.15%);
+        }
+      }
+
+      @keyframes boot-shine-text {
+        0% {
+          transform: translateX(28%);
+          animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+        }
+        38%,
+        100% {
+          transform: translateX(-100%);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .boot *,
+        .boot *::before {
+          animation-duration: 0.01s !important;
+          animation-iteration-count: 1 !important;
+        }
+
+        .boot__shine,
+        .boot__glow {
+          display: none;
+        }
       }
     </style>
   </head>
   <body>
-    <div id="boot" class="boot" role="status">
-      <svg class="boot__mark" viewBox="0 0 64 64" aria-hidden="true">
-        <rect width="64" height="64" rx="16" fill="#ff5a1f" />
-        <path d="M14 40c4-10 12-16 18-16s14 6 18 16" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" />
-        <path d="M20 46h24" stroke="#fff" stroke-width="5" stroke-linecap="round" />
-      </svg>
-      <div class="boot__bar"></div>
-      <p class="boot__label">Preparando o estádio</p>
+    <!-- textos repetidos de src/config/event.ts: aparecem antes do JavaScript carregar -->
+    <div id="boot" class="boot">
+      <div class="boot__bg"><div class="boot__glow"></div></div>
+      <div class="boot__scrim"></div>
+      <div class="boot__stage" aria-hidden="true">
+        <p class="boot__place">
+          <span class="boot__rule"></span>
+          <span class="boot__place-text">Minas Gerais · Brasil</span>
+          <span class="boot__rule boot__rule--end"></span>
+        </p>
+        <div class="boot__match">
+          <span class="boot__side boot__side--home">
+            <span class="boot__crest boot__crest--home">AUR</span>
+            <span>Aurora FC</span>
+          </span>
+          <span class="boot__vs">×</span>
+          <span class="boot__side boot__side--away">
+            <span>Atlântico EC</span>
+            <span class="boot__crest boot__crest--away">ATL</span>
+          </span>
+        </div>
+      </div>
+      <div class="boot__copy">
+        <p class="boot__line boot__kicker">
+          <span>Grande final<i class="boot__dot"></i>Temporada 2026</span>
+        </p>
+        <h1 class="boot__line boot__title">
+          <span class="boot__word"><span>Arena</span></span> <span class="boot__word"><span>Aurora</span></span>
+          <span class="boot__shine" aria-hidden="true">
+            <span class="boot__shine-window"><span class="boot__shine-text">Arena Aurora</span></span>
+          </span>
+        </h1>
+        <p class="boot__line boot__meta"><span>Aurora FC × Atlântico EC — Sáb, 12 dez · 16h00</span></p>
+      </div>
     </div>
+    <script>
+      window.__bootStart = performance.now()
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

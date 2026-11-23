@@ -4,7 +4,9 @@ import type { Object3D } from 'three'
 import { introDisabled, useExperience } from '../store/experience'
 
 /**
- * Libera a abertura depois que os primeiros quadros foram processados.
+ * Avisa que a cena está pronta depois que os primeiros quadros foram
+ * processados. A abertura de texto (src/ui/bootSequence.ts) decide quando a
+ * câmera começa.
  *
  * O primeiro quadro (ainda atrás da tela de carregamento) desenha tudo, mesmo
  * o que está fora da tela ou escondido. Assim todas as geometrias e texturas
@@ -33,8 +35,9 @@ export function ReadySignal({ frames = 3, skipIntro = false }: { frames?: number
       restore.current = []
     }
     if (count.current === frames) {
-      const { phase, setPhase } = useExperience.getState()
-      if (phase === 'loading') setPhase(introDisabled || skipIntro ? 'aerial' : 'intro')
+      const { phase, setPhase, setSceneReady } = useExperience.getState()
+      setSceneReady()
+      if (phase === 'loading' && (introDisabled || skipIntro)) setPhase('aerial')
     }
   })
   return null
