@@ -50,33 +50,24 @@ function createSeatMap(layout: StadiumLayout) {
 }
 
 /**
- * Bloco sob o cursor ou escolhido em laranja (a faixa de LED na frente dele
- * também muda de cor); na vista de frente, os outros blocos escurecem.
- * Entra antes da iluminação, depois de toda a cor e do brilho próprio.
+ * Bloco sob o cursor ou escolhido em laranja; na vista de frente, os outros
+ * blocos escurecem. Entra antes da iluminação, depois de toda a cor.
+ * (O painel de LED na frente do bloco acende em LedRibbons.)
  */
 const BLOCK_HIGHLIGHT = /* glsl */ `
 {
   float picked = selIs(vBlockId, uSelectBlock);
   float hl = max(selIs(vBlockId, uHoverBlock) * 0.85, picked);
   diffuseColor.rgb = mix(diffuseColor.rgb, ${HIGHLIGHT_LINEAR} * 0.9, hl * 0.72);
-  float led = max(totalEmissiveRadiance.r, max(totalEmissiveRadiance.g, totalEmissiveRadiance.b));
-  vec3 glow = ${HIGHLIGHT_LINEAR} * max(0.2 + 0.16 * uPulse * picked, led * 0.8);
-  totalEmissiveRadiance = mix(totalEmissiveRadiance, glow, min(1.0, hl * 1.5));
-  float focus = step(0.0, uFocusBlock);
-  float dim = focus * (1.0 - selIs(vBlockId, uFocusBlock));
+  totalEmissiveRadiance += ${HIGHLIGHT_LINEAR} * hl * (0.2 + 0.16 * uPulse * picked);
+  float dim = step(0.0, uFocusBlock) * (1.0 - selIs(vBlockId, uFocusBlock));
   diffuseColor.rgb *= 1.0 - dim * 0.55;
-  // de perto, a faixa de LED viraria um painel azul chapado ocupando a parte
-  // de baixo da tela: na vista de frente ela fica apagada
-  float ledOff = focus * step(0.05, led);
-  diffuseColor.rgb *= 1.0 - ledOff * 0.88;
-  totalEmissiveRadiance *= 1.0 - focus * mix(0.9, 0.95, dim);
 }
 `
 
 const getStandsParts = once(() => {
   const layout = getLayout()
   const material = withSurfaceNoise(new MeshLambertMaterial({ vertexColors: true }), 'stands', {
-    vertexEmissive: true,
     fill: 1.15,
     seatMap: createSeatMap(layout),
   })

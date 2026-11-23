@@ -73,23 +73,14 @@ function tierProfile(tier: TierGeometry, aisle: boolean): P[] {
   return pts
 }
 
-// faixa de LED nas bordas dos anéis superiores
-const RIBBON = new Color('#1a2cff').multiplyScalar(1.1)
-
 const TAKEN = new Color(SEAT_COLORS.taken)
 const AVAILABLE = new Color(SEAT_COLORS.available)
 
-function colored(
-  points: P[],
-  palette: Record<Kind, Color>,
-  ribbon: boolean,
-  seatOf?: (row: number) => ProfilePoint['seat'],
-): ProfilePoint[] {
+function colored(points: P[], palette: Record<Kind, Color>, seatOf?: (row: number) => ProfilePoint['seat']): ProfilePoint[] {
   return points.map((p) => ({
     d: p.d,
     y: p.y,
     color: palette[p.kind],
-    emissive: ribbon && p.kind === 'fascia' ? RIBBON : undefined,
     seat: seatOf && p.row !== undefined ? seatOf(p.row) : undefined,
   }))
 }
@@ -102,9 +93,8 @@ export function buildStandsGeometry(layout: StadiumLayout) {
     const palette = Object.fromEntries(
       Object.entries({ ...COLORS, fascia: tier.spec.fascia }).map(([k, v]) => [k, new Color(v)]),
     ) as Record<Kind, Color>
-    const ribbon = tier.spec.level > 1
     const seatsShape = tierProfile(tier, false)
-    const aisleProfile = colored(tierProfile(tier, true), palette, ribbon)
+    const aisleProfile = colored(tierProfile(tier, true), palette)
 
     for (const block of layout.blocks) {
       if (block.tier !== tier.spec.id) continue
@@ -118,7 +108,6 @@ export function buildStandsGeometry(layout: StadiumLayout) {
       const seatsProfile = colored(
         seatsShape,
         { ...palette, tread: average.clone().multiplyScalar(0.5), riser: average.clone().multiplyScalar(0.4) },
-        ribbon,
         (row) => {
           const r = block.rowSeats[row]
           return [block.atlasRow + row, r.uFirst, r.du, r.count]

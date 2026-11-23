@@ -41,6 +41,7 @@ export interface TierSpec {
   underside: [number, number][]
   /** blocos por lateral maior, lateral menor e canto */
   blocks: { long: number; short: number; corner: number }
+  /** face do guarda-corpo (nos anéis de cima, a moldura do painel de LED) */
   fascia: string
 }
 
@@ -77,7 +78,7 @@ export const TIERS: TierSpec[] = [
     backBottom: 15.2,
     underside: [],
     blocks: { long: 7, short: 4, corner: 5 },
-    fascia: '#1f3fb2',
+    fascia: '#17191e',
   },
   {
     id: 'upper',
@@ -94,7 +95,7 @@ export const TIERS: TierSpec[] = [
     backBottom: 33,
     underside: [[34.5, 27.0]],
     blocks: { long: 7, short: 4, corner: 7 },
-    fascia: '#1f3fb2',
+    fascia: '#17191e',
   },
 ]
 
