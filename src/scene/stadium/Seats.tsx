@@ -1,6 +1,6 @@
 import { useFrame } from '@react-three/fiber'
 import { useLayoutEffect, useMemo, useRef } from 'react'
-import { DoubleSide, InstancedBufferAttribute, InstancedMesh, MeshStandardMaterial, Object3D } from 'three'
+import { DoubleSide, InstancedBufferAttribute, InstancedMesh, MeshLambertMaterial, Object3D } from 'three'
 import { getLayout } from '../../lib/layout'
 import { getSeatColors } from '../../lib/seatColors'
 import { extendShader, pixelUniforms } from '../pixelScale'
@@ -32,7 +32,7 @@ export function Seats() {
   const material = useMemo(
     () =>
       extendShader(
-        withLocalFill(new MeshStandardMaterial({ roughness: 0.38, metalness: 0, side: DoubleSide }), 'seats', 1.15),
+        withLocalFill(new MeshLambertMaterial({ side: DoubleSide }), 'seats', 1.15),
         'seat-shrink',
         (shader) => {
           Object.assign(shader.uniforms, pixelUniforms)

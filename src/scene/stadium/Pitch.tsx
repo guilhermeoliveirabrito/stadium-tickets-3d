@@ -4,7 +4,6 @@ import {
   DoubleSide,
   Float32BufferAttribute,
   MeshLambertMaterial,
-  MeshStandardMaterial,
   Shape,
   ShapeGeometry,
 } from 'three'
@@ -114,13 +113,12 @@ function Goal({ side }: { side: 1 | -1 }) {
     )
     return {
       net: createNetGeometry(),
-      netMaterial: new MeshStandardMaterial({
+      netMaterial: new MeshLambertMaterial({
         map,
         alphaTest: 0.35,
         transparent: false,
         alphaToCoverage: true,
         side: DoubleSide,
-        roughness: 0.8,
         color: '#f4f4f4',
       }),
     }

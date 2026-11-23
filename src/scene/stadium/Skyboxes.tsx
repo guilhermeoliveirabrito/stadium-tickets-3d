@@ -1,12 +1,5 @@
 import { useMemo } from 'react'
-import {
-  BoxGeometry,
-  BufferGeometry,
-  Color,
-  Matrix4,
-  MeshLambertMaterial,
-  MeshStandardMaterial,
-} from 'three'
+import { BoxGeometry, BufferGeometry, Color, Matrix4, MeshLambertMaterial, MeshStandardMaterial } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { SKYBOX } from '../../config/stadium'
 import { frameAt, SEGMENTS, type Frame } from '../../lib/bowl'
@@ -132,9 +125,9 @@ export function Skyboxes() {
         envMapIntensity: 1.6,
       }),
       wallMaterial: new MeshLambertMaterial({ color: '#e7e3dc' }),
-      frameMaterial: new MeshStandardMaterial({ color: '#2a2d33', roughness: 0.4, metalness: 0.5 }),
-      leather: new MeshStandardMaterial({ color: '#1c1c20', roughness: 0.34, metalness: 0.05 }),
-      lightMaterial: new MeshStandardMaterial({ color: '#fff', emissive: '#ffd39b', emissiveIntensity: 4 }),
+      frameMaterial: new MeshLambertMaterial({ color: '#2a2d33' }),
+      leather: new MeshLambertMaterial({ color: '#1c1c20' }),
+      lightMaterial: new MeshLambertMaterial({ color: '#fff', emissive: '#ffd39b', emissiveIntensity: 4 }),
       partitionGeometry: new BoxGeometry(0.16, ceiling - floor, back - front).translate(0, (ceiling - floor) / 2, 0),
       mullionGeometry: new BoxGeometry(0.07, ceiling - floor, 0.1).translate(0, (ceiling - floor) / 2, 0),
       chairGeometry: createArmchairGeometry(),

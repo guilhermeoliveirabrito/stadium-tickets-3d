@@ -7,7 +7,7 @@ import {
   InstancedMesh,
   Material,
   MeshBasicMaterial,
-  MeshStandardMaterial,
+  MeshLambertMaterial,
   Object3D,
   SphereGeometry,
 } from 'three'
@@ -93,7 +93,7 @@ export function StreetLights({ lamps }: { lamps: Lamp[] }) {
     return {
       models: models(),
       groups: (['street', 'lot', 'plaza', 'park'] as LampKind[]).map((kind) => ({ kind, lamps: byKind(kind) })),
-      metal: new MeshStandardMaterial({ color: '#3a3e45', roughness: 0.55, metalness: 0.6 }),
+      metal: new MeshLambertMaterial({ color: '#3a3e45' }),
       // a luminária em si fica abaixo do limiar do bloom; o brilho vem dos sprites
       warm: new MeshBasicMaterial({ color: new Color('#ffc58a').multiplyScalar(0.55) }),
       cool: new MeshBasicMaterial({ color: new Color('#eef3ff').multiplyScalar(0.6) }),

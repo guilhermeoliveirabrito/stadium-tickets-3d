@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import { BoxGeometry, MeshStandardMaterial, PlaneGeometry } from 'three'
+import { BoxGeometry, MeshLambertMaterial, PlaneGeometry } from 'three'
 import { canvasTexture } from '../../lib/textures'
 
 const HEIGHT = 0.9
@@ -37,7 +37,7 @@ const BOARDS = [
 export function AdBoards() {
   const parts = useMemo(() => {
     const texture = canvasTexture(2048, 64, drawBoards, { repeat: true })
-    const body = new MeshStandardMaterial({ color: '#16181c', roughness: 0.6 })
+    const body = new MeshLambertMaterial({ color: '#16181c' })
     const boards = BOARDS.map((b, i) => {
       const map = texture.clone()
       map.repeat.set(b.length / TEXTURE_LENGTH, 1)
@@ -45,12 +45,11 @@ export function AdBoards() {
       return {
         ...b,
         map,
-        face: new MeshStandardMaterial({
+        face: new MeshLambertMaterial({
           map,
           emissiveMap: map,
           emissive: '#ffffff',
           emissiveIntensity: 2.2,
-          roughness: 0.35,
         }),
         faceGeometry: new PlaneGeometry(b.length, HEIGHT),
         bodyGeometry: new BoxGeometry(b.length, HEIGHT, 0.14),

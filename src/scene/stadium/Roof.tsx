@@ -1,12 +1,5 @@
 import { useMemo } from 'react'
-import {
-  BoxGeometry,
-  Color,
-  Matrix4,
-  MeshBasicMaterial,
-  MeshLambertMaterial,
-  MeshStandardMaterial,
-} from 'three'
+import { BoxGeometry, Color, Matrix4, MeshBasicMaterial, MeshLambertMaterial } from 'three'
 import { ROOF } from '../../config/stadium'
 import { pointsAlong, profile, SweepBuilder } from '../../lib/sweep'
 import { FrameInstances } from './FrameInstances'
@@ -71,11 +64,10 @@ export function Roof() {
         0.08,
       ),
       steel: new MeshLambertMaterial({ color: '#eeede9' }),
-      lamp: new MeshStandardMaterial({
+      lamp: new MeshLambertMaterial({
         color: '#d9dde3',
         emissive: '#f4f7ff',
         emissiveIntensity: 0.7,
-        roughness: 0.3,
       }),
       // brilho de cada refletor, logo abaixo da borda interna da cobertura
       lampGlows: pointsAlong(inner + 0.6, 3.1).map((f) => [f.x, innerY - t - 0.8, f.z] as [number, number, number]),

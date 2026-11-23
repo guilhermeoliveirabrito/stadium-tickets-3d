@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { BoxGeometry, Color, MeshBasicMaterial, MeshStandardMaterial } from 'three'
+import { BoxGeometry, Color, MeshBasicMaterial, MeshLambertMaterial } from 'three'
 import type { ParkingLot } from '../../lib/city/layout'
 import { ACCESS_WIDTH } from '../../lib/city/layout'
 import { canvasTexture } from '../../lib/textures'
@@ -34,19 +34,19 @@ export function LotGates({ lot }: { lot: ParkingLot }) {
       booth: new BoxGeometry(2.2, 2.6, 2.6),
       boothGlass: new BoxGeometry(2.24, 1.1, 2.64),
       arm: new BoxGeometry(4.2, 0.12, 0.12),
-      concrete: new MeshStandardMaterial({ color: '#3b3f46', roughness: 0.6, metalness: 0.3 }),
+      concrete: new MeshLambertMaterial({ color: '#3b3f46' }),
       light: new MeshBasicMaterial({ color: new Color('#f4f7ff').multiplyScalar(4) }),
       // topo com a borda laranja (textura) e laterais na cor da marca
       roofMaterials: [
         new MeshBasicMaterial({ color: new Color('#ff5a1f').multiplyScalar(0.9) }),
         new MeshBasicMaterial({ color: new Color('#ff5a1f').multiplyScalar(0.9) }),
         new MeshBasicMaterial({ map: canopyTop(), color: new Color(3.2, 3.2, 3.2) }),
-        new MeshStandardMaterial({ color: '#3b3f46', roughness: 0.6, metalness: 0.3 }),
+        new MeshLambertMaterial({ color: '#3b3f46' }),
         new MeshBasicMaterial({ color: new Color('#ff5a1f').multiplyScalar(0.9) }),
         new MeshBasicMaterial({ color: new Color('#ff5a1f').multiplyScalar(0.9) }),
       ],
       glass: new MeshBasicMaterial({ color: new Color('#ffd7a0').multiplyScalar(2.2) }),
-      stripes: new MeshStandardMaterial({ color: '#e7e3dc', emissive: '#ff2a1a', emissiveIntensity: 0.6 }),
+      stripes: new MeshLambertMaterial({ color: '#e7e3dc', emissive: '#ff2a1a', emissiveIntensity: 0.6 }),
     }
   }, [lot])
 
