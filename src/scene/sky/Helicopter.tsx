@@ -22,8 +22,12 @@ import { createGlowGeometry, createGlowMaterial } from '../glowMaterial'
 import { outside } from '../outside'
 import { outsideFog } from '../outsideFog'
 
-/** voo em volta do estádio, por fora da cobertura: raio, altura e duração da volta (s) */
-const ORBIT = { radius: 150, height: 92, period: 95, start: 2.3 }
+/**
+ * Voo em volta do estádio, por cima da cobertura: elipse por dentro da volta
+ * do dirigível e 40 m abaixo dele, para os dois nunca se cruzarem (nem vistos
+ * de cima, onde antes pareciam bater). Semieixos, altura e duração da volta (s).
+ */
+const ORBIT = { rx: 130, rz: 82, height: 88, period: 80, start: 2.3 }
 /** raio do círculo de luz no gramado (m) */
 const SPOT = 7
 
@@ -138,8 +142,8 @@ export function Helicopter() {
     if (!root.visible) return
     const t = state.clock.elapsedTime
     const a = ORBIT.start + (t / ORBIT.period) * Math.PI * 2
-    const x = Math.cos(a) * ORBIT.radius
-    const z = Math.sin(a) * ORBIT.radius
+    const x = Math.cos(a) * ORBIT.rx
+    const z = Math.sin(a) * ORBIT.rz
     const y = ORBIT.height + Math.sin(t * 0.7) * 1.2
     // de frente para o estádio, voando de lado (como quem filma o jogo)
     craft.current.position.set(x, y, z)
