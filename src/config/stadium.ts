@@ -128,7 +128,7 @@ export const SKYBOX = {
     [22.5, 11.35],
     [23.7, 11.7],
   ] as [number, number][],
-  chairsPerRow: 9,
+  chairsPerRow: 8,
 }
 
 export const ROOF = {

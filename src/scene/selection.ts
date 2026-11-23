@@ -10,6 +10,9 @@ export const selectionUniforms = {
   uFocusBlock: { value: -1 },
   uHoverSeat: { value: -1 },
   uSelectSeat: { value: -1 },
+  /** camarote sob o cursor e camarote aberto */
+  uHoverBox: { value: -1 },
+  uSelectBox: { value: -1 },
   /** 0 a 1, pulsando devagar */
   uPulse: { value: 0 },
 }
@@ -20,6 +23,8 @@ uniform float uSelectBlock;
 uniform float uFocusBlock;
 uniform float uHoverSeat;
 uniform float uSelectSeat;
+uniform float uHoverBox;
+uniform float uSelectBox;
 uniform float uPulse;
 `
 
