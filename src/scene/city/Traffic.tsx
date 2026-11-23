@@ -5,6 +5,7 @@ import {
   BufferAttribute,
   Color,
   DynamicDrawUsage,
+  InstancedBufferAttribute,
   InstancedMesh,
   Matrix4,
   MeshBasicMaterial,
@@ -30,10 +31,91 @@ vCarFar = 0.0;
   vec4 carView = modelViewMatrix * instanceMatrix * vec4(0.0, 0.8, 0.0, 1.0);
   float carPixel = max(-carView.z, 0.0) * uPixelAngle;
   vCarFar = smoothstep(0.1, 0.3, carPixel);
-  vColor.rgb = mix(vColor.rgb, instanceColor.rgb * 0.8, vCarFar);
+  vec3 carBody = instanceColor.rgb;
+  #ifdef CAR_PARKED
+    // carros parados: de longe a cor se aproxima da média dos vizinhos da
+    // fileira, sem o contraste de carro branco ao lado de carro preto que
+    // "pulava" a cada movimento da câmera
+    carBody = mix(carBody, aCarAverage, 0.6 * vCarFar);
+  #endif
+  vColor.rgb = mix(vColor.rgb, carBody * 0.8, vCarFar);
 }
 #endif
 `
+
+/** De longe o carro parado cresce até ocupar a vaga, e some a fresta escura entre os carros. */
+const CAR_GROW = /* glsl */ `
+#ifdef CAR_PARKED
+  transformed.x *= mix(1.0, 1.37, vCarFar);
+  transformed.z *= mix(1.0, 1.12, vCarFar);
+#endif
+`
+
+function createCarPaint(parked: boolean) {
+  const material = extendShader(
+    withCityLight(
+      new MeshStandardMaterial({ vertexColors: true, roughness: 0.32, metalness: 0.55, envMapIntensity: 1.3 }),
+      'cars',
+      { strength: 1.8, falloff: 3 },
+    ),
+    'car-far',
+    (shader) => {
+      Object.assign(shader.uniforms, pixelUniforms)
+      shader.vertexShader = shader.vertexShader
+        .replace(
+          '#include <common>',
+          `#include <common>
+          uniform float uPixelAngle;
+          varying float vCarFar;
+          #ifdef CAR_PARKED
+            attribute vec3 aCarAverage;
+          #endif`,
+        )
+        .replace('#include <color_vertex>', `#include <color_vertex>\n${CAR_FAR}`)
+        .replace('#include <begin_vertex>', `#include <begin_vertex>\n${CAR_GROW}`)
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying float vCarFar;')
+        .replace(
+          '#include <metalnessmap_fragment>',
+          `#include <metalnessmap_fragment>
+          roughnessFactor = mix(roughnessFactor, 0.78, vCarFar);
+          metalnessFactor = mix(metalnessFactor, 0.15, vCarFar);`,
+        )
+    },
+  )
+  if (parked) material.defines = { CAR_PARKED: '' }
+  return material
+}
+
+/** Média das cores de até 3 carros de cada lado, na mesma fileira de vagas. */
+function rowAverage(cars: { x: number; z: number; color: string }[]) {
+  const out = new Float32Array(cars.length * 3)
+  const color = new Color()
+  const rows = new Map<number, number[]>()
+  cars.forEach((c, i) => {
+    const key = Math.round(c.x * 10)
+    if (!rows.has(key)) rows.set(key, [])
+    rows.get(key)!.push(i)
+  })
+  for (const list of rows.values()) {
+    list.sort((a, b) => cars[a].z - cars[b].z)
+    list.forEach((index, k) => {
+      let r = 0
+      let g = 0
+      let b = 0
+      let n = 0
+      for (let j = Math.max(0, k - 3); j <= Math.min(list.length - 1, k + 3); j++) {
+        color.set(cars[list[j]].color)
+        r += color.r
+        g += color.g
+        b += color.b
+        n++
+      }
+      out.set([r / n, g / n, b / n], index * 3)
+    })
+  }
+  return out
+}
 
 const HEAD = new Color('#fff0d8')
 const TAIL = new Color('#ff1a0d')
@@ -48,28 +130,9 @@ export function Traffic() {
       body: createCarBody(),
       beam: createBeamGeometry(),
       glow: createTailGlowGeometry(),
-      paint: extendShader(
-        withCityLight(
-          new MeshStandardMaterial({ vertexColors: true, roughness: 0.32, metalness: 0.55, envMapIntensity: 1.3 }),
-          'cars',
-          { strength: 2.4, falloff: 3 },
-        ),
-        'car-far',
-        (shader) => {
-          Object.assign(shader.uniforms, pixelUniforms)
-          shader.vertexShader = shader.vertexShader
-            .replace('#include <common>', '#include <common>\nuniform float uPixelAngle;\nvarying float vCarFar;')
-            .replace('#include <color_vertex>', `#include <color_vertex>\n${CAR_FAR}`)
-          shader.fragmentShader = shader.fragmentShader
-            .replace('#include <common>', '#include <common>\nvarying float vCarFar;')
-            .replace(
-              '#include <metalnessmap_fragment>',
-              `#include <metalnessmap_fragment>
-              roughnessFactor = mix(roughnessFactor, 0.78, vCarFar);
-              metalnessFactor = mix(metalnessFactor, 0.15, vCarFar);`,
-            )
-        },
-      ),
+      paint: createCarPaint(false),
+      parkedPaint: createCarPaint(true),
+      parkedBody: createCarBody(),
       // faróis e lanternas como brilhos: nunca menores que 2 pixels, então não
       // piscam de longe (antes eram caixinhas finas e muito brilhantes)
       heads: createGlowGeometry(new Float32Array(carCount * 3), new Float32Array(carCount * 3)),
@@ -119,6 +182,7 @@ export function Traffic() {
       parked.current!.setMatrixAt(i, dummy.matrix)
       parked.current!.setColorAt(i, color.set(car.color))
     })
+    parts.parkedBody.setAttribute('aCarAverage', new InstancedBufferAttribute(rowAverage(plan.parked), 3))
     parked.current!.instanceMatrix.needsUpdate = true
     parked.current!.instanceColor!.needsUpdate = true
     parked.current!.computeBoundingSphere()
@@ -168,7 +232,7 @@ export function Traffic() {
       <points geometry={parts.tails} material={parts.tailMaterial} frustumCulled={false} renderOrder={2} />
       <instancedMesh ref={beams} args={[parts.beam, parts.beamMaterial, count]} frustumCulled={false} renderOrder={1} />
       <instancedMesh ref={glows} args={[parts.glow, parts.glowMaterial, count]} frustumCulled={false} renderOrder={1} />
-      <instancedMesh ref={parked} args={[parts.body, parts.paint, plan.parked.length]} />
+      <instancedMesh ref={parked} args={[parts.parkedBody, parts.parkedPaint, plan.parked.length]} />
     </group>
   )
 }
