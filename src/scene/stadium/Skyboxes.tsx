@@ -34,6 +34,8 @@ import { createSkyboxNumbers, createSkyboxWallTextures, NUMBER_COLUMNS, NUMBER_R
 const OTHER_SEGMENTS = [1, 2, 3, 5, 6, 7]
 /** de longe (visão geral, abertura) os camarotes ficam escondidos embaixo do anel intermediário */
 const VISIBLE_WITHIN = 320
+/** poltronas arredondadas só com a câmera perto de algum camarote (vista do camarote) */
+const ROUNDED_WITHIN = 45
 const CHAIR_SPACING = 0.85
 const INNER_WIDTH = SKYBOX.width - 0.16
 const COUNTER_D = SKYBOX.back - 1.3
@@ -80,12 +82,18 @@ function withBoxLight<T extends Material>(material: T, key: string, strength: nu
   })
 }
 
-/** Poltrona de couro: assento e encosto arredondados, braços e base. */
-function createArmchairGeometry(): BufferGeometry {
+/**
+ * Poltrona de couro: assento e encosto arredondados, braços e base. De longe
+ * (vista do setor, a poltrona com poucos pixels) usa a mesma forma em caixas
+ * retas, com um quarto dos triângulos.
+ */
+function createArmchairGeometry(rounded = true): BufferGeometry {
   const parts = [
     new BoxGeometry(0.6, 0.2, 0.56).translate(0, 0.1, 0),
-    new RoundedBoxGeometry(0.58, 0.17, 0.58, 1, 0.06).translate(0, 0.29, 0.03),
-    new RoundedBoxGeometry(0.64, 0.56, 0.17, 1, 0.07).rotateX(-0.16).translate(0, 0.62, -0.25),
+    (rounded ? new RoundedBoxGeometry(0.58, 0.17, 0.58, 1, 0.06) : new BoxGeometry(0.58, 0.17, 0.58)).translate(0, 0.29, 0.03),
+    (rounded ? new RoundedBoxGeometry(0.64, 0.56, 0.17, 1, 0.07) : new BoxGeometry(0.64, 0.56, 0.17))
+      .rotateX(-0.16)
+      .translate(0, 0.62, -0.25),
     new BoxGeometry(0.09, 0.2, 0.6).translate(-0.33, 0.44, 0.02),
     new BoxGeometry(0.09, 0.2, 0.6).translate(0.33, 0.44, 0.02),
   ]
@@ -331,14 +339,10 @@ const getSkyboxParts = once(() => {
     partitions,
     mullions,
     lights,
-    chairs,
-    seated,
-    standing,
     perBox,
     wallArt,
     numbers,
-    seatedColors: personColors(seated.length),
-    standingColors: personColors(standing.length),
+    sides: splitBySide(boxes.length, chairs, seated, standing, personColors(seated.length), personColors(standing.length)),
     sillColors: Float32Array.from(
       boxes.flatMap((b) => new Color(b.sold ? SEAT_COLORS.taken : SEAT_COLORS.available).toArray()),
     ),
@@ -364,8 +368,7 @@ const getSkyboxParts = once(() => {
     partitionGeometry: new BoxGeometry(0.16, ceiling - floor, back - front).translate(0, (ceiling - floor) / 2, 0),
     mullionGeometry: new BoxGeometry(0.07, ceiling - floor, 0.1).translate(0, (ceiling - floor) / 2, 0),
     chairGeometry: createArmchairGeometry(),
-    seatedGeometry: createPersonGeometry(true),
-    standingGeometry: createPersonGeometry(false),
+    chairFarGeometry: createArmchairGeometry(false),
     counterGeometry: createCounterGeometry(),
     wallGeometry: new PlaneGeometry(INNER_WIDTH - 0.1, ceiling - TOP_FLOOR - 0.08),
     signGeometry: new PlaneGeometry(1.5, 0.28),
@@ -374,6 +377,34 @@ const getSkyboxParts = once(() => {
     lightGeometry: new BoxGeometry(5.6, 0.05, 0.35),
   }
 })
+
+type Placed = { matrix: Matrix4; box: number }
+type Colors = { shirt: Float32Array; skin: Float32Array }
+
+/**
+ * Poltronas e pessoas separadas por lateral (norte e sul): de dentro do
+ * estádio a câmera enquadra um lado só, e a placa de vídeo descarta o outro.
+ * Cada lado tem a própria geometria de pessoa (o tom de pele é um atributo dela).
+ */
+function splitBySide(total: number, chairs: Matrix4[], seated: Placed[], standing: Placed[], seatedColors: Colors, standingColors: Colors) {
+  const half = total / 2
+  const perBox = SKYBOX.rows.length * SKYBOX.chairsPerRow
+  const pick = (values: Float32Array, indices: number[]) => Float32Array.from(indices.flatMap((i) => [values[i * 3], values[i * 3 + 1], values[i * 3 + 2]]))
+  return [0, 1].map((side) => {
+    const inSide = (box: number) => (box < half) === (side === 0)
+    const seatedIdx = seated.flatMap((p, i) => (inSide(p.box) ? [i] : []))
+    const standingIdx = standing.flatMap((p, i) => (inSide(p.box) ? [i] : []))
+    return {
+      chairs: chairs.filter((_, i) => inSide(Math.floor(i / perBox))),
+      seated: seatedIdx.map((i) => seated[i].matrix),
+      seatedColors: { shirt: pick(seatedColors.shirt, seatedIdx), skin: pick(seatedColors.skin, seatedIdx) },
+      seatedGeometry: createPersonGeometry(true),
+      standing: standingIdx.map((i) => standing[i].matrix),
+      standingColors: { shirt: pick(standingColors.shirt, standingIdx), skin: pick(standingColors.skin, standingIdx) },
+      standingGeometry: createPersonGeometry(false),
+    }
+  })
+}
 
 /** Balcão do bar: corpo escuro, tampo claro e um filete de LED quente embaixo do tampo. */
 function createCounterGeometry(): BufferGeometry {
@@ -421,6 +452,8 @@ function Instances({
 export function Skyboxes() {
   const parts = useMemo(() => getSkyboxParts(), [])
   const group = useRef<Group>(null)
+  const roundChairs = useRef<Group>(null)
+  const boxChairs = useRef<Group>(null)
 
   useEffect(() => {
     // redesenha os textos quando a fonte terminar de carregar
@@ -432,11 +465,18 @@ export function Skyboxes() {
   }, [])
 
   useFrame((state) => {
-    if (group.current) group.current.visible = state.camera.position.length() < VISIBLE_WITHIN
+    const camera = state.camera.position
+    const visible = camera.length() < VISIBLE_WITHIN
+    if (group.current) group.current.visible = visible
+    if (!visible || !roundChairs.current || !boxChairs.current) return
+    let closest = Infinity
+    for (const box of getSkyboxes()) {
+      const [x, y, z] = box.position
+      closest = Math.min(closest, Math.hypot(camera.x - x, camera.y - y, camera.z - z))
+    }
+    roundChairs.current.visible = closest < ROUNDED_WITHIN
+    boxChairs.current.visible = closest >= ROUNDED_WITHIN
   })
-
-  const seatedMatrices = useMemo(() => parts.seated.map((p) => p.matrix), [parts])
-  const standingMatrices = useMemo(() => parts.standing.map((p) => p.matrix), [parts])
 
   return (
     <group ref={group}>
@@ -444,21 +484,34 @@ export function Skyboxes() {
       <FrameInstances frames={parts.partitions} y={SKYBOX.floor} geometry={parts.partitionGeometry} material={parts.wallMaterial} />
       <FrameInstances frames={parts.mullions} y={SKYBOX.floor} geometry={parts.mullionGeometry} material={parts.frameMaterial} />
       <FrameInstances frames={parts.lights} y={SKYBOX.ceiling - 0.04} geometry={parts.lightGeometry} material={parts.lightMaterial} />
-      <Instances matrices={parts.chairs} geometry={parts.chairGeometry} material={parts.leather} />
-      <Instances
-        matrices={seatedMatrices}
-        geometry={parts.seatedGeometry}
-        material={parts.peopleMaterial}
-        colors={parts.seatedColors.shirt}
-        skin={parts.seatedColors.skin}
-      />
-      <Instances
-        matrices={standingMatrices}
-        geometry={parts.standingGeometry}
-        material={parts.peopleMaterial}
-        colors={parts.standingColors.shirt}
-        skin={parts.standingColors.skin}
-      />
+      <group ref={roundChairs}>
+        {parts.sides.map((side, i) => (
+          <Instances key={i} matrices={side.chairs} geometry={parts.chairGeometry} material={parts.leather} />
+        ))}
+      </group>
+      <group ref={boxChairs}>
+        {parts.sides.map((side, i) => (
+          <Instances key={i} matrices={side.chairs} geometry={parts.chairFarGeometry} material={parts.leather} />
+        ))}
+      </group>
+      {parts.sides.map((side, i) => (
+        <group key={i}>
+          <Instances
+            matrices={side.seated}
+            geometry={side.seatedGeometry}
+            material={parts.peopleMaterial}
+            colors={side.seatedColors.shirt}
+            skin={side.seatedColors.skin}
+          />
+          <Instances
+            matrices={side.standing}
+            geometry={side.standingGeometry}
+            material={parts.peopleMaterial}
+            colors={side.standingColors.shirt}
+            skin={side.standingColors.skin}
+          />
+        </group>
+      ))}
       <Instances matrices={parts.perBox.counter} geometry={parts.counterGeometry} material={parts.counterMaterial} />
       <Instances matrices={parts.perBox.wall} geometry={parts.wallGeometry} material={parts.artMaterial} />
       <Instances matrices={parts.perBox.sign} geometry={parts.signGeometry} material={parts.numberMaterial} />
