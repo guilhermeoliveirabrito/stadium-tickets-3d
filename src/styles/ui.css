@@ -162,6 +162,15 @@
   color: #fff;
 }
 
+.step--done {
+  color: var(--ink);
+}
+
+.step--done .step__n {
+  background: rgba(255, 90, 31, 0.14);
+  color: var(--accent-deep);
+}
+
 /* abertura (o texto fica no index.html; aqui só o botão de pular) -------- */
 
 .intro {
@@ -326,6 +335,134 @@
   }
 }
 
+/* setor escolhido ---------------------------------------------------------- */
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(15, 17, 21, 0.06);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.price {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 16px 0 0;
+}
+
+.price strong {
+  font-size: 28px;
+  font-weight: 780;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
+}
+
+.price span {
+  color: var(--ink-soft);
+  font-size: 12.5px;
+}
+
+.availability {
+  margin-top: 12px;
+}
+
+.availability__text {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 7px;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.availability__text b {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.availability__bar {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(200, 16, 46, 0.22);
+}
+
+.availability__fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--seat-blue), #3b82f6);
+  transform-origin: 0 50%;
+  transition: transform 0.7s var(--ease-out);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 650;
+  white-space: nowrap;
+  transition:
+    background 0.25s,
+    transform 0.25s var(--ease-out),
+    opacity 0.25s;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.btn--primary {
+  flex: 1;
+  background: var(--ink);
+  color: #fff;
+}
+
+.btn--primary:not(:disabled):hover {
+  background: var(--accent-deep);
+}
+
+.btn--ghost {
+  padding: 0 16px 0 12px;
+  background: rgba(15, 17, 21, 0.06);
+}
+
+.btn--ghost:hover {
+  background: rgba(15, 17, 21, 0.11);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* rótulos dentro da cena ---------------------------------------------------- */
 
 .block-label {
@@ -417,5 +554,17 @@
   .skip {
     bottom: auto;
     top: max(18px, env(safe-area-inset-top));
+  }
+
+  .panel {
+    padding: 16px 16px 14px;
+  }
+
+  .panel__title {
+    font-size: 20px;
+  }
+
+  .actions {
+    margin-top: 12px;
   }
 }
