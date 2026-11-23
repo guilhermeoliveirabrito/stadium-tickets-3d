@@ -8,6 +8,7 @@ import { Atmosphere } from './Atmosphere'
 import { CameraRig } from './CameraRig'
 import { DevCamera } from './DevCamera'
 import { City } from './city/City'
+import { Aircraft } from './sky/Aircraft'
 import { BlockPicker } from './picking/BlockPicker'
 import { OutsideFogSetup } from './outsideFog'
 import { BoxPicker } from './picking/BoxPicker'
@@ -80,6 +81,7 @@ export function Experience() {
       {devCamera ? <DevCamera /> : <CameraRig />}
       <Stadium tier={tier} />
       <City />
+      <Aircraft />
       <SelectionSync />
       <BlockPicker />
       <BoxPicker />
