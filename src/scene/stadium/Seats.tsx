@@ -10,7 +10,6 @@ import {
   MeshLambertMaterial,
   NearestFilter,
   Object3D,
-  type PerspectiveCamera,
   RedFormat,
   Sphere,
   UnsignedByteType,
@@ -168,6 +167,16 @@ const getBlockSpheres = once(() => {
   })
 })
 
+/** Blocos vizinhos (anterior e seguinte) no mesmo anel. */
+const getBlockNeighbors = once(() => {
+  const { blocks } = getLayout()
+  return blocks.map((block) => {
+    const ring = blocks.filter((b) => b.tier === block.tier).map((b) => b.index)
+    const k = ring.indexOf(block.index)
+    return [ring[(k - 1 + ring.length) % ring.length], ring[(k + 1) % ring.length]]
+  })
+})
+
 /** Dados por cadeira na ordem do layout (cada bloco é uma faixa contínua). */
 const getSeatData = once(() => {
   const { seats } = getLayout()
@@ -199,10 +208,9 @@ const getSeatParts = once(() => ({
 
 /**
  * Cadeiras em duas versões: uma leve (quatro triângulos) para todas e uma
- * detalhada (concha moldada, cerca de 200 triângulos) só para os blocos
- * enquadrados perto da câmera, do mais perto para o mais longe (o bloco
- * escolhido primeiro), até o orçamento do nível de qualidade. Na visão geral
- * nenhum bloco chega perto o bastante e só a versão leve é desenhada.
+ * detalhada (concha moldada, cerca de 200 triângulos) só depois de escolher
+ * um setor: o bloco escolhido e os vizinhos dele no mesmo anel, quando estão
+ * enquadrados e perto o bastante, dentro do orçamento do nível de qualidade.
  */
 export function Seats({ detailBudget }: { detailBudget: number }) {
   const { seats, blocks } = getLayout()
@@ -232,8 +240,6 @@ export function Seats({ detailBudget }: { detailBudget: number }) {
   const lod = useRef({
     frustum: new Frustum(),
     matrix: new Matrix4(),
-    forward: new Vector3(),
-    toBlock: new Vector3(),
     inSet: new Uint8Array(blocks.length),
     next: new Uint8Array(blocks.length),
     order: new Int16Array(blocks.length),
@@ -251,21 +257,23 @@ export function Seats({ detailBudget }: { detailBudget: number }) {
 
     const l = lod.current
     const spheres = getBlockSpheres()
-    const selected = useExperience.getState().selectedBlock
+    const neighbors = getBlockNeighbors()
+    const { phase, selectedBlock: selected } = useExperience.getState()
+    // só com um setor escolhido: o bloco dele e os vizinhos do mesmo anel
+    const choosing = (phase === 'sector' || phase === 'block') && selected >= 0
     let candidates = 0
     if (mesh.visible) {
       l.frustum.setFromProjectionMatrix(l.matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse))
-      camera.getWorldDirection(l.forward)
-      const halfFov = ((camera as PerspectiveCamera).fov * Math.PI) / 360
       for (let b = 0; b < spheres.length; b++) {
+        // fora da escolha, os blocos detalhados ficam até encolherem com a distância (sem troca brusca)
+        const wanted = choosing ? b === selected || neighbors[selected].includes(b) : l.inSet[b] === 1
+        if (!wanted) continue
         const sphere = spheres[b]
         const distance = Math.max(1, camera.position.distanceTo(sphere.center) - sphere.radius)
         const px = 0.44 / (distance * pixelAngle)
         if (px < (l.inSet[b] ? DETAIL_OUT_PX : DETAIL_IN_PX) || !l.frustum.intersectsSphere(sphere)) continue
-        // perto do centro da tela vale mais que na borda (onde às vezes só aparece um pedaço do bloco)
-        const off = Math.acos(Math.min(1, l.toBlock.subVectors(sphere.center, camera.position).normalize().dot(l.forward)))
-        l.score[b] = b === selected ? -1 : distance * (1 + (1.2 * off) / halfFov)
-        // inserção ordenada (no máximo 130 blocos, sem alocar nada)
+        l.score[b] = b === selected ? -1 : distance
+        // inserção ordenada (poucos blocos, sem alocar nada)
         let k = candidates++
         while (k > 0 && l.score[l.order[k - 1]] > l.score[b]) {
           l.order[k] = l.order[k - 1]
