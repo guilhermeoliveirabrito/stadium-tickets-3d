@@ -114,20 +114,19 @@ export function drawGround(ctx: Ctx, size: number, city: CityLayout) {
     ctx.stroke()
   }
 
-  // esplanada em pedra clara, com paginação em anéis e uma grade no pátio
+  // Esplanada em pedra clara: paginação em anéis em volta do estádio e uma
+  // grade no pátio. Cada desenho fica só na sua área (antes os anéis passavam
+  // da borda da esplanada e cruzavam a grade do pátio).
   plazaPath(ctx, city.forecourt, px, S)
   ctx.fillStyle = '#d3ccbd'
   ctx.fill()
-  ctx.save()
-  plazaPath(ctx, city.forecourt, px, S)
-  ctx.clip()
   ctx.strokeStyle = 'rgba(150, 138, 118, 0.45)'
   ctx.lineWidth = Math.max(1, 0.25 * S)
-  for (let d = 58; d < PLAZA_D + 40; d += 5) {
-    roundedRectPath(ctx, d, px, S)
-    ctx.stroke()
-  }
   const f = city.forecourt
+  ctx.save()
+  ctx.beginPath()
+  ctx.rect(px(f.x0), px(f.z0), (f.x1 - f.x0) * S, (f.z1 - f.z0) * S)
+  ctx.clip()
   ctx.beginPath()
   for (let x = f.x0; x <= f.x1; x += 6) {
     ctx.moveTo(px(x), px(f.z0))
@@ -139,10 +138,39 @@ export function drawGround(ctx: Ctx, size: number, city: CityLayout) {
   }
   ctx.stroke()
   ctx.restore()
-  plazaPath(ctx, city.forecourt, px, S)
+  // o anel cobre a grade onde os dois se encontram
+  ctx.save()
+  roundedRectPath(ctx, PLAZA_D, px, S)
+  ctx.fillStyle = '#d3ccbd'
+  ctx.fill()
+  ctx.clip()
+  for (let d = 58; d < PLAZA_D; d += 5) {
+    roundedRectPath(ctx, d, px, S)
+    ctx.stroke()
+  }
+  ctx.restore()
+  // meio-fio só na borda de fora da esplanada: o contorno do anel fora do
+  // pátio e o do pátio fora do anel (sem uma reta atravessando a paginação)
   ctx.strokeStyle = '#a9a193'
   ctx.lineWidth = 1 * S
-  ctx.stroke()
+  const hx = BOWL.halfX + PLAZA_D
+  const hz = BOWL.halfZ + PLAZA_D
+  const ring = () => ctx.roundRect(px(-hx), px(-hz), 2 * hx * S, 2 * hz * S, (BOWL.radius + PLAZA_D) * S)
+  const court = () => ctx.rect(px(f.x0), px(f.z0), (f.x1 - f.x0) * S, (f.z1 - f.z0) * S)
+  for (const [shape, other] of [
+    [ring, court],
+    [court, ring],
+  ]) {
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(0, 0, size, size)
+    other()
+    ctx.clip('evenodd')
+    ctx.beginPath()
+    shape()
+    ctx.stroke()
+    ctx.restore()
+  }
 
   // entradas das casas e piscinas
   ctx.fillStyle = '#9c988f'
