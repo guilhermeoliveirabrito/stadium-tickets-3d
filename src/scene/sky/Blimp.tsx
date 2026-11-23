@@ -3,12 +3,16 @@ import { useEffect, useMemo, useRef } from 'react'
 import {
   BoxGeometry,
   BufferGeometry,
+  type Camera,
   DoubleSide,
   Float32BufferAttribute,
+  Frustum,
   type Group,
   MathUtils,
+  Matrix4,
   MeshBasicMaterial,
   MeshLambertMaterial,
+  Sphere,
   Vector3,
 } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
@@ -23,10 +27,12 @@ const LENGTH = 52
 const RADIUS = 6.8
 /**
  * Volta em torno do estádio: elipse que cabe na visão geral (o dirigível
- * aparece no quadro quase o tempo todo), altura e duração (s). Começa atrás
- * do estádio, visto da câmera no início da abertura.
+ * aparece no quadro quase o tempo todo), altura e duração da volta (s).
  */
-const ORBIT = { rx: 185, rz: 120, height: 125, period: 210, start: -1.0 }
+const ORBIT = { rx: 185, rz: 120, height: 128, period: 180 }
+const ORBIT_SPEED = (Math.PI * 2) / ORBIT.period
+/** raio que envolve o dirigível inteiro, para saber se ele está fora da tela */
+const BLIMP_RADIUS = 30
 
 /**
  * Começo da abertura: o dirigível passa perto da câmera, com a faixa do
@@ -39,15 +45,69 @@ const ORBIT = { rx: 185, rz: 120, height: 125, period: 210, start: -1.0 }
  * - height: altura na tela, em fração da meia altura acima do centro
  */
 const FLYBY = { wideShare: 0.42, narrowShare: 1.15, drift: 0.05, from: -0.12, height: 0.46 }
-/** depois da abertura, tempo (s) para fazer a curva e entrar na volta em torno do estádio */
-const JOIN_SECONDS = 24
-
-/** Posição e velocidade (m/s) na volta em torno do estádio, no instante t. */
-function orbitAt(t: number, position: Vector3, velocity: Vector3) {
-  const w = (Math.PI * 2) / ORBIT.period
-  const a = ORBIT.start + t * w
+/** Posição e velocidade (m/s) no ângulo `a` da volta em torno do estádio. */
+function orbitAt(a: number, position: Vector3, velocity: Vector3) {
+  const w = ORBIT_SPEED
   position.set(Math.cos(a) * ORBIT.rx, ORBIT.height + Math.sin(a * 3) * 2, Math.sin(a) * ORBIT.rz)
   velocity.set(-Math.sin(a) * ORBIT.rx * w, Math.cos(a * 3) * 6 * w, Math.cos(a) * ORBIT.rz * w)
+}
+
+/** Como o dirigível entra na volta: reta de chegada e o ângulo em que encaixa na elipse. */
+interface Entry {
+  /** ângulo da elipse onde a reta encosta (pela tangente) */
+  angle: number
+  /** direção (horizontal) e velocidade da reta de chegada */
+  direction: Vector3
+  speed: number
+  /** comprimento da reta (m) e o instante em que ela começa */
+  length: number
+  start: number
+}
+
+const entryScratch = {
+  frustum: new Frustum(),
+  matrix: new Matrix4(),
+  sphere: new Sphere(new Vector3(), BLIMP_RADIUS),
+  point: new Vector3(),
+  velocity: new Vector3(),
+}
+
+/**
+ * Escolhe por onde o dirigível entra na tela: para cada ponto da elipse que
+ * aparece na tela, recua pela tangente até sair do quadro; fica o que tem a
+ * reta mais curta. Ele surge logo depois, já na direção da volta, e encaixa
+ * nela sem virar (antes, uma curva longa o trazia de fora e terminava virando
+ * no sentido contrário).
+ */
+function planEntry(camera: Camera, now: number, entry: Entry) {
+  const { frustum, matrix, sphere, point, velocity } = entryScratch
+  frustum.setFromProjectionMatrix(matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse))
+  let best = -1
+  let bestLength = Infinity
+  const steps = 48
+  for (let k = 0; k < steps; k++) {
+    const angle = (k / steps) * Math.PI * 2
+    orbitAt(angle, point, velocity)
+    sphere.center.copy(point)
+    if (!frustum.intersectsSphere(sphere)) continue
+    velocity.setY(0).normalize()
+    let length = 0
+    while (length < 700 && frustum.intersectsSphere(sphere)) {
+      length += 5
+      sphere.center.copy(point).addScaledVector(velocity, -length)
+    }
+    if (length < bestLength) {
+      bestLength = length
+      best = angle
+    }
+  }
+  if (best < 0) best = 0
+  orbitAt(best, point, velocity)
+  entry.angle = best
+  entry.speed = Math.hypot(velocity.x, velocity.z)
+  entry.direction.copy(velocity).setY(0).normalize()
+  entry.length = Number.isFinite(bestLength) ? bestLength : 0
+  entry.start = now
 }
 
 /**
@@ -72,24 +132,6 @@ function flybyStart(aspect: number) {
     .addScaledVector(up, distance * t * FLYBY.height)
     .addScaledVector(right, FLYBY.from * visibleWidth)
   return { position, velocity: right.setY(0).normalize().multiplyScalar(FLYBY.drift * visibleWidth) }
-}
-
-const scratch = new Vector3()
-
-/** Curva de Bézier cúbica (posição ou derivada) entre os quatro pontos. */
-function bezier(p: Vector3[], u: number, out: Vector3, derivative = false) {
-  const v = 1 - u
-  if (derivative) {
-    out.copy(p[1]).sub(p[0]).multiplyScalar(3 * v * v)
-    out.addScaledVector(scratch.copy(p[2]).sub(p[1]), 6 * v * u)
-    return out.addScaledVector(scratch.copy(p[3]).sub(p[2]), 3 * u * u)
-  }
-  return out
-    .copy(p[0])
-    .multiplyScalar(v * v * v)
-    .addScaledVector(p[1], 3 * v * v * u)
-    .addScaledVector(p[2], 3 * v * u * u)
-    .addScaledVector(p[3], u * u * u)
 }
 
 /** Raio do envelope em t (0 = nariz, 1 = cauda): nariz cheio e cauda afinando. */
@@ -213,14 +255,13 @@ export function Blimp() {
     })
   }, [])
 
-  // abertura: passagem perto da câmera; depois, a curva até a volta em torno do estádio
+  // abertura: passagem perto da câmera; depois, entra na tela e segue a volta em torno do estádio
   const motion = useRef({
-    mode: 'none' as 'none' | 'flyby' | 'join' | 'orbit',
+    mode: 'none' as 'none' | 'flyby' | 'waiting' | 'entering',
     flybyFrom: new Vector3(),
     flybyVelocity: new Vector3(),
     flybyStart: -1,
-    join: [new Vector3(), new Vector3(), new Vector3(), new Vector3()],
-    joinStart: 0,
+    entry: { angle: 0, direction: new Vector3(1, 0, 0), speed: 1, length: 0, start: 0 } as Entry,
     position: new Vector3(),
     velocity: new Vector3(),
   })
@@ -231,41 +272,45 @@ export function Blimp() {
     const m = motion.current
     const t = state.clock.elapsedTime
     const { phase, introSkipped } = useExperience.getState()
-    const opening = (phase === 'loading' || phase === 'intro') && !introSkipped
+    // a câmera já chegou à visão geral (fim da abertura, ou abertura pulada)
+    const settled = phase !== 'loading' && phase !== 'intro'
 
     if (m.mode === 'none') {
-      if (opening && !introDisabled) {
+      if (!settled && !introSkipped && !introDisabled) {
         const start = flybyStart(state.size.width / state.size.height)
         m.flybyFrom.copy(start.position)
         m.flybyVelocity.copy(start.velocity)
         m.mode = 'flyby'
-      } else m.mode = 'orbit'
+      } else m.mode = 'waiting'
     }
     if (m.mode === 'flyby') {
       // parado até a abertura da câmera começar (a tela ainda está preta)
       if (phase === 'intro' && m.flybyStart < 0) m.flybyStart = t
       m.position.copy(m.flybyFrom).addScaledVector(m.flybyVelocity, m.flybyStart < 0 ? 0 : t - m.flybyStart)
       m.velocity.copy(m.flybyVelocity)
-      if (!opening) {
-        // fim da abertura (ou abertura pulada): curva suave até a volta
-        const [p0, p1, p2, p3] = m.join
-        p0.copy(m.position)
-        p1.copy(m.position).addScaledVector(m.velocity, JOIN_SECONDS / 3)
-        orbitAt(t + JOIN_SECONDS, p3, p2)
-        p2.multiplyScalar(-JOIN_SECONDS / 3).add(p3)
-        m.joinStart = t
-        m.mode = 'join'
+      // na visão geral ele está fora do quadro: passa para a entrada na volta
+      if (settled) m.mode = 'waiting'
+    }
+    if (m.mode === 'waiting') {
+      if (!settled) {
+        group.visible = false
+        return
+      }
+      planEntry(state.camera, t, m.entry)
+      m.mode = 'entering'
+    }
+    if (m.mode === 'entering') {
+      const e = m.entry
+      const travelled = (t - e.start) * e.speed
+      if (travelled < e.length) {
+        // reta de chegada, que encosta na elipse pela tangente
+        orbitAt(e.angle, m.position, m.velocity)
+        m.position.addScaledVector(e.direction, travelled - e.length)
+        m.velocity.copy(e.direction).multiplyScalar(e.speed)
+      } else {
+        orbitAt(e.angle + (travelled - e.length) / e.speed * ORBIT_SPEED, m.position, m.velocity)
       }
     }
-    if (m.mode === 'join') {
-      const u = (t - m.joinStart) / JOIN_SECONDS
-      if (u >= 1) m.mode = 'orbit'
-      else {
-        bezier(m.join, u, m.position)
-        bezier(m.join, u, m.velocity, true)
-      }
-    }
-    if (m.mode === 'orbit') orbitAt(t, m.position, m.velocity)
 
     group.visible = outside.visible
     if (!group.visible) return
