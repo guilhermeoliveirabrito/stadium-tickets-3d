@@ -2,6 +2,8 @@
 
 Compra de ingressos em 3D para um estádio fictício, numa noite de final. A experiência começa com a vista aérea do estádio; você escolhe o setor, a câmera desce até a arquibancada, você escolhe a cadeira e vê o campo exatamente de onde vai assistir ao jogo.
 
+**Ver ao vivo:** https://guilhermeoliveirabrito.github.io/stadium-tickets-3d/
+
 ![Abertura: o estádio em neon com o estacionamento e a cidade em volta](docs/abertura.jpg)
 
 > Projeto de estudo. O estádio (Arena Aurora), os clubes (Aurora FC e Atlântico EC), a partida e a marca de ingressos (tribuna) são inventados.
@@ -69,7 +71,7 @@ npm install
 npm run dev
 ```
 
-Para gerar a versão de produção: `npm run build` (o resultado fica em `dist/`).
+Para gerar a versão de produção: `npm run build` (o resultado fica em `dist/`). A cada push na `main`, o GitHub Actions gera o site e publica no GitHub Pages (ver `.github/workflows/deploy.yml`).
 
 Parâmetros úteis na URL:
 
