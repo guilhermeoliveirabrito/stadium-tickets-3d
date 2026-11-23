@@ -8,6 +8,8 @@ export interface ProfilePoint {
   color: Color
   /** emissão da aresta (faixas de LED); preto quando omitida */
   emissive?: Color
+  /** degrau com cadeiras: [linha no mapa de cores, u da 1ª cadeira, passo em u, quantidade] */
+  seat?: [number, number, number, number]
 }
 
 const ARC_STEP = (2.5 * Math.PI) / 180
@@ -27,6 +29,8 @@ export class SweepBuilder {
   private color: number[] = []
   private emissive: number[] = []
   private block: number[] = []
+  private seatRow: number[] = []
+  private seatU: number[] = []
   private index: number[] = []
   private frame = frameAt(SEGMENTS[0], 0, 0)
 
@@ -61,6 +65,9 @@ export class SweepBuilder {
           if (a.emissive) this.emissive.push(a.emissive.r, a.emissive.g, a.emissive.b)
           else this.emissive.push(0, 0, 0)
           this.block.push(blockIndex)
+          if (a.seat) this.seatRow.push(...a.seat)
+          else this.seatRow.push(-1, 0, 0, 0)
+          this.seatU.push(k / samples)
         }
       }
       for (let k = 0; k < samples; k++) {
@@ -84,6 +91,8 @@ export class SweepBuilder {
     g.setAttribute('color', new Float32BufferAttribute(this.color, 3))
     g.setAttribute('aEmissive', new Float32BufferAttribute(this.emissive, 3))
     g.setAttribute('aBlock', new Float32BufferAttribute(this.block, 1))
+    g.setAttribute('aSeatRow', new Float32BufferAttribute(this.seatRow, 4))
+    g.setAttribute('aSeatU', new Float32BufferAttribute(this.seatU, 1))
     g.setIndex(new Uint32BufferAttribute(this.index, 1))
     g.computeBoundingSphere()
     return g

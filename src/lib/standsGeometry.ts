@@ -22,6 +22,8 @@ interface P {
   y: number
   /** tipo da aresta que sai deste ponto */
   kind: Kind
+  /** fileira (para o piso e o espelho sob as cadeiras) */
+  row?: number
 }
 
 const COLORS: Record<Exclude<Kind, 'fascia'>, string> = {
@@ -51,8 +53,8 @@ function tierProfile(tier: TierGeometry, aisle: boolean): P[] {
     const last = i === rows.length - 1
     const depth = spec.rowDepth
     if (!aisle) {
-      pts.push({ d: row.d, y: row.y, kind: 'tread' })
-      pts.push({ d: row.d + depth, y: row.y, kind: last ? 'back' : 'riser' })
+      pts.push({ d: row.d, y: row.y, kind: 'tread', row: i })
+      pts.push({ d: row.d + depth, y: row.y, kind: last ? 'back' : 'riser', row: last ? undefined : i })
       return
     }
     pts.push({ d: row.d, y: row.y, kind: 'step' })
@@ -77,12 +79,18 @@ const RIBBON = new Color('#1a2cff').multiplyScalar(1.1)
 const TAKEN = new Color(SEAT_COLORS.taken)
 const AVAILABLE = new Color(SEAT_COLORS.available)
 
-function colored(points: P[], palette: Record<Kind, Color>, ribbon: boolean): ProfilePoint[] {
+function colored(
+  points: P[],
+  palette: Record<Kind, Color>,
+  ribbon: boolean,
+  seatOf?: (row: number) => ProfilePoint['seat'],
+): ProfilePoint[] {
   return points.map((p) => ({
     d: p.d,
     y: p.y,
     color: palette[p.kind],
     emissive: ribbon && p.kind === 'fascia' ? RIBBON : undefined,
+    seat: seatOf && p.row !== undefined ? seatOf(p.row) : undefined,
   }))
 }
 
@@ -111,6 +119,10 @@ export function buildStandsGeometry(layout: StadiumLayout) {
         seatsShape,
         { ...palette, tread: average.clone().multiplyScalar(0.5), riser: average.clone().multiplyScalar(0.4) },
         ribbon,
+        (row) => {
+          const r = block.rowSeats[row]
+          return [block.atlasRow + row, r.uFirst, r.du, r.count]
+        },
       )
       builder.sweep(
         seatsProfile,

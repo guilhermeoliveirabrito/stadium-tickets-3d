@@ -39,6 +39,10 @@ export interface Block {
   seatCount: number
   available: number
   rows: number
+  /** primeira linha deste bloco no mapa de cores das cadeiras */
+  atlasRow: number
+  /** por fileira: posição (u) do centro da 1ª cadeira, passo em u e quantidade */
+  rowSeats: { uFirst: number; du: number; count: number; firstSeat: number }[]
 }
 
 export interface Seats {
@@ -98,6 +102,7 @@ export function buildLayout(): StadiumLayout {
 
   const frame = frameAt(SEGMENTS[0], 0, 0)
   const half = AISLE_WIDTH / 2 + SEAT.margin
+  let atlasRows = 0
 
   for (const tier of tiers) {
     const { spec } = tier
@@ -129,7 +134,10 @@ export function buildLayout(): StadiumLayout {
           seatCount: 0,
           available: 0,
           rows: spec.rows,
+          atlasRow: atlasRows,
+          rowSeats: [],
         }
+        atlasRows += spec.rows
 
         tier.rows.forEach((row, r) => {
           const d = row.d + spec.rowDepth - SEAT.setback
@@ -140,6 +148,10 @@ export function buildLayout(): StadiumLayout {
           const used = (count - 1) * SEAT.pitch
           const ds = SEAT.pitch / segmentLength(seg, d)
           const start = a + (z - a) / 2 - (used / 2) / segmentLength(seg, d)
+          // u vai de 0 a 1 ao longo do degrau, de corredor a corredor (como na geometria)
+          const u0 = s0 + insetToS(seg, AISLE_WIDTH / 2, d)
+          const u1 = s1 - insetToS(seg, AISLE_WIDTH / 2, d)
+          block.rowSeats.push({ uFirst: (start - u0) / (u1 - u0), du: ds / (u1 - u0), count, firstSeat: yaw.length })
 
           for (let k = 0; k < count; k++) {
             frameAt(seg, start + k * ds, d, frame)
