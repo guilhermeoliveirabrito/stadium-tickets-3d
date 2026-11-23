@@ -8,10 +8,13 @@ import { Atmosphere } from './Atmosphere'
 import { CameraRig } from './CameraRig'
 import { DevCamera } from './DevCamera'
 import { City } from './city/City'
+import { BlockPicker } from './picking/BlockPicker'
+import { BlockLabel } from './picking/Labels'
 import { PostFX } from './PostFX'
 import { PixelScale } from './pixelScale'
 import { Precompile } from './Precompile'
 import { ReadySignal } from './ReadySignal'
+import { SelectionSync } from './SelectionSync'
 import { Stadium } from './stadium/Stadium'
 
 const devCamera = import.meta.env.DEV && new URLSearchParams(window.location.search).has('cam')
@@ -74,6 +77,9 @@ export function Experience() {
       {devCamera ? <DevCamera /> : <CameraRig />}
       <Stadium />
       <City />
+      <SelectionSync />
+      <BlockPicker />
+      <BlockLabel />
       <PostFX tier={tier} />
       <ReadySignal skipIntro={devCamera} />
       {!compiled && <Precompile onDone={onCompiled} waitForTitle={!devCamera} />}

@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import { getLayout } from '../lib/layout'
 
+const canHover = window.matchMedia('(hover: hover)').matches
+
 const number = new Intl.NumberFormat('pt-BR')
 
 export function OverviewPanel({ visible }: { visible: boolean }) {
@@ -11,7 +13,7 @@ export function OverviewPanel({ visible }: { visible: boolean }) {
   }, [])
 
   return (
-    <section className="panel glass" data-visible={visible} aria-label="Visão geral do estádio">
+    <section className="panel glass" data-visible={visible} aria-label="Visão geral do estádio" aria-hidden={!visible}>
       <p className="panel__kicker">Visão geral</p>
       <h2 className="panel__title">Escolha seu setor</h2>
       <p className="panel__text">Três anéis, camarotes e vista para o campo inteiro. Os lugares em azul ainda estão livres.</p>
@@ -25,6 +27,10 @@ export function OverviewPanel({ visible }: { visible: boolean }) {
           Ocupado
         </li>
       </ul>
+      <p className="hint">
+        <span className="hint__icon" aria-hidden="true" />
+        {canHover ? 'Passe o mouse sobre um bloco para ver o preço e clique para ver de perto.' : 'Toque em um bloco para ver de perto.'}
+      </p>
       <dl className="stats">
         <div>
           <dt>Lugares</dt>
