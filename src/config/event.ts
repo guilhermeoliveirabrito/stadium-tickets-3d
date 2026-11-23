@@ -7,4 +7,6 @@ export const EVENT = {
   away: { name: 'Atlântico EC', short: 'ATL' },
   date: 'Sáb, 12 dez',
   time: '16h00',
+  /** início da partida (horário de Brasília), para a contagem regressiva dos telões */
+  kickoff: '2026-12-12T16:00:00-03:00',
 }

@@ -6,6 +6,7 @@ import { Fireworks } from './Fireworks'
 import { LedRibbons } from './LedRibbons'
 import { Pitch } from './Pitch'
 import { Roof } from './Roof'
+import { Screens } from './Screens'
 import { Seats } from './Seats'
 import { Skyboxes } from './Skyboxes'
 import { Stands } from './Stands'
@@ -28,6 +29,7 @@ export function Stadium({ tier }: { tier: Tier }) {
       <Seats detailBudget={QUALITY[tier].detailSeats} />
       <Skyboxes />
       <Roof />
+      <Screens />
       <Facade />
       <NeonClock />
       <Fireworks />
