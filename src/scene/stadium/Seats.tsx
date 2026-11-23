@@ -4,6 +4,7 @@ import {
   DataTexture,
   DoubleSide,
   Frustum,
+  type Group,
   InstancedBufferAttribute,
   InstancedMesh,
   Matrix4,
@@ -101,6 +102,9 @@ const FARTHEST_SEAT = 120
 /** tamanho (pixels) a partir do qual um bloco passa para a versão detalhada, e abaixo do qual volta */
 const DETAIL_IN_PX = 4
 const DETAIL_OUT_PX = 3.4
+/** a cadeira detalhada passa à forma simples abaixo deste tamanho (pixels) e volta à completa acima do outro */
+const SIMPLE_BELOW_PX = 9
+const FULL_ABOVE_PX = 11
 /** o maior orçamento (nível alto), com folga para completar o último bloco */
 const DETAIL_CAPACITY = 8600
 
@@ -198,6 +202,7 @@ const getSeatData = once(() => {
 const getSeatParts = once(() => ({
   lightGeometry: createSeatGeometry(),
   detailGeometry: createDetailedSeatGeometry(),
+  detailSimpleGeometry: createDetailedSeatGeometry(true),
   lightMaterial: extendShader(
     withLocalFill(new MeshLambertMaterial({ side: DoubleSide }), 'seats', 1.15),
     'seat-light',
@@ -207,33 +212,60 @@ const getSeatParts = once(() => ({
 }))
 
 /**
+ * Versão leve em faixas contínuas por anel e segmento do contorno. De perto a
+ * câmera enquadra um lado só do estádio, e a placa de vídeo descarta as faixas
+ * fora da tela; com uma malha só, as 60 mil cadeiras passavam todas pelo
+ * vertex shader a cada quadro.
+ */
+const getLightChunks = once(() => {
+  const { blocks } = getLayout()
+  const data = getSeatData()
+  const { lightGeometry, lightMaterial } = getSeatParts()
+  const ranges: { key: string; start: number; end: number }[] = []
+  for (const block of blocks) {
+    const key = `${block.tier}:${block.segment}`
+    const end = block.seatStart + block.seatCount
+    const last = ranges[ranges.length - 1]
+    if (last?.key === key) last.end = end
+    else ranges.push({ key, start: block.seatStart, end })
+  }
+  return ranges.map(({ start, end }) => {
+    const geometry = lightGeometry.clone()
+    geometry.setAttribute('aSeatIndex', new InstancedBufferAttribute(data.index.slice(start, end), 1))
+    geometry.setAttribute('aSeatBlock', new InstancedBufferAttribute(data.block.slice(start, end), 1))
+    const mesh = new InstancedMesh(geometry, lightMaterial, end - start)
+    mesh.instanceMatrix.array.set(data.matrices.subarray(start * 16, end * 16))
+    mesh.instanceColor = new InstancedBufferAttribute(data.colors.slice(start * 3, end * 3), 3)
+    mesh.computeBoundingSphere()
+    return mesh
+  })
+})
+
+/**
  * Cadeiras em duas versões: uma leve (quatro triângulos) para todas e uma
  * detalhada (concha moldada, cerca de 200 triângulos) só depois de escolher
  * um setor: o bloco escolhido e os vizinhos dele no mesmo anel, quando estão
  * enquadrados e perto o bastante, dentro do orçamento do nível de qualidade.
  */
 export function Seats({ detailBudget }: { detailBudget: number }) {
-  const { seats, blocks } = getLayout()
-  const light = useRef<InstancedMesh>(null)
+  const { blocks } = getLayout()
+  const light = useRef<Group>(null)
   const detail = useRef<InstancedMesh>(null)
   const parts = useMemo(() => getSeatParts(), [])
+  const chunks = useMemo(() => getLightChunks(), [])
 
   useLayoutEffect(() => {
-    const data = getSeatData()
-    const { lightGeometry, detailGeometry } = getSeatParts()
-    const mesh = light.current!
-    mesh.instanceMatrix.array.set(data.matrices)
-    mesh.instanceColor = new InstancedBufferAttribute(new Float32Array(data.colors), 3)
-    lightGeometry.setAttribute('aSeatIndex', new InstancedBufferAttribute(data.index, 1))
-    lightGeometry.setAttribute('aSeatBlock', new InstancedBufferAttribute(data.block, 1))
-    mesh.instanceMatrix.needsUpdate = true
-    mesh.computeBoundingSphere()
-
-    // a versão detalhada recebe só as cadeiras dos blocos escolhidos (ver abaixo)
+    const { detailGeometry, detailSimpleGeometry } = getSeatParts()
+    // a versão detalhada recebe só as cadeiras dos blocos escolhidos (ver
+    // abaixo); as duas formas dela dividem os mesmos dados por cadeira
     const near = detail.current!
     near.instanceColor = new InstancedBufferAttribute(new Float32Array(DETAIL_CAPACITY * 3), 3)
-    detailGeometry.setAttribute('aSeatIndex', new InstancedBufferAttribute(new Float32Array(DETAIL_CAPACITY), 1))
-    detailGeometry.setAttribute('aSeatBlock', new InstancedBufferAttribute(new Float32Array(DETAIL_CAPACITY), 1))
+    const seatIndex = new InstancedBufferAttribute(new Float32Array(DETAIL_CAPACITY), 1)
+    const seatBlock = new InstancedBufferAttribute(new Float32Array(DETAIL_CAPACITY), 1)
+    for (const geometry of [detailGeometry, detailSimpleGeometry]) {
+      geometry.setAttribute('aSeatIndex', seatIndex)
+      geometry.setAttribute('aSeatBlock', seatBlock)
+    }
     near.count = 0
   }, [])
 
@@ -247,13 +279,13 @@ export function Seats({ detailBudget }: { detailBudget: number }) {
   })
 
   useFrame((state) => {
-    const mesh = light.current
+    const group = light.current
     const near = detail.current
-    if (!mesh || !near) return
+    if (!group || !near) return
     const camera = state.camera
     const pixelAngle = pixelUniforms.uPixelAngle.value
     // nem manda as 60 mil cadeiras para a placa de vídeo quando todas estão pequenas demais
-    mesh.visible = 0.44 / (Math.max(1, camera.position.length() - FARTHEST_SEAT) * pixelAngle) > 1.9
+    group.visible = 0.44 / (Math.max(1, camera.position.length() - FARTHEST_SEAT) * pixelAngle) > 1.9
 
     const l = lod.current
     const spheres = getBlockSpheres()
@@ -262,11 +294,13 @@ export function Seats({ detailBudget }: { detailBudget: number }) {
     // só com um setor escolhido: o bloco dele e os vizinhos do mesmo anel
     const choosing = (phase === 'sector' || phase === 'block') && selected >= 0
     let candidates = 0
-    if (mesh.visible) {
+    if (group.visible) {
       l.frustum.setFromProjectionMatrix(l.matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse))
       for (let b = 0; b < spheres.length; b++) {
-        // fora da escolha, os blocos detalhados ficam até encolherem com a distância (sem troca brusca)
-        const wanted = choosing ? b === selected || neighbors[selected].includes(b) : l.inSet[b] === 1
+        // Voltando para a visão geral, os blocos detalhados ficam até encolherem
+        // com a distância (sem troca brusca). Indo para um camarote, saem logo:
+        // a câmera ainda está longe e as cadeiras ainda são pequenas.
+        const wanted = choosing ? b === selected || neighbors[selected].includes(b) : phase === 'aerial' && l.inSet[b] === 1
         if (!wanted) continue
         const sphere = spheres[b]
         const distance = Math.max(1, camera.position.distanceTo(sphere.center) - sphere.radius)
@@ -291,6 +325,18 @@ export function Seats({ detailBudget }: { detailBudget: number }) {
       total += count
       l.next[b] = 1
     }
+    // forma da versão detalhada: completa quando as cadeiras têm muitos
+    // pixels (vista do bloco); só a frente quando são pequenas (vista do setor)
+    let nearestPx = 0
+    for (let k = 0; k < candidates; k++) {
+      const sphere = spheres[l.order[k]]
+      nearestPx = Math.max(nearestPx, 0.44 / (Math.max(1, camera.position.distanceTo(sphere.center) - sphere.radius) * pixelAngle))
+    }
+    const { detailGeometry, detailSimpleGeometry } = getSeatParts()
+    const full = near.geometry === detailGeometry
+    if (full && nearestPx < SIMPLE_BELOW_PX) near.geometry = detailSimpleGeometry
+    else if (!full && nearestPx > FULL_ABOVE_PX) near.geometry = detailGeometry
+
     let changed = false
     for (let b = 0; b < blocks.length && !changed; b++) changed = l.next[b] !== l.inSet[b]
     if (!changed) return
@@ -298,7 +344,6 @@ export function Seats({ detailBudget }: { detailBudget: number }) {
     // troca de conjunto: copia as cadeiras dos blocos escolhidos para a versão detalhada
     l.inSet.set(l.next)
     const data = getSeatData()
-    const { detailGeometry } = getSeatParts()
     const color = near.instanceColor!
     const seatIndex = detailGeometry.getAttribute('aSeatIndex') as InstancedBufferAttribute
     const seatBlock = detailGeometry.getAttribute('aSeatBlock') as InstancedBufferAttribute
@@ -332,7 +377,11 @@ export function Seats({ detailBudget }: { detailBudget: number }) {
 
   return (
     <group>
-      <instancedMesh ref={light} args={[parts.lightGeometry, parts.lightMaterial, seats.count]} frustumCulled={false} />
+      <group ref={light}>
+        {chunks.map((mesh, i) => (
+          <primitive key={i} object={mesh} />
+        ))}
+      </group>
       <instancedMesh ref={detail} args={[parts.detailGeometry, parts.detailMaterial, DETAIL_CAPACITY]} frustumCulled={false} />
     </group>
   )

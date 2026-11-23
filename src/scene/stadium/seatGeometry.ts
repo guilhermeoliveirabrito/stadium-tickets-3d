@@ -50,10 +50,16 @@ function halfWidth(t: number) {
  * encosto curvo, inclinado para trás), com espessura e um pé de metal.
  * Cerca de 200 triângulos; só os blocos perto da câmera usam esta versão.
  * O atributo aTint é 1 na concha (que leva a cor da cadeira) e 0 no metal.
+ *
+ * `frontOnly` tira o que nunca aparece com a cadeira vista de frente (as
+ * costas da concha): a frente fica idêntica, com 132 triângulos em vez de
+ * 204. É a forma usada quando a cadeira tem poucos pixels (vista do setor).
  */
-export function createDetailedSeatGeometry(): BufferGeometry {
-  const rows = SHELL_PROFILE.length
-  const cols = ACROSS + 1
+export function createDetailedSeatGeometry(frontOnly = false): BufferGeometry {
+  const used = SHELL_PROFILE.map((_, i) => i)
+  const across = ACROSS
+  const rows = used.length
+  const cols = across + 1
   // normal do perfil para o lado de quem senta: (dy, -dz)
   const normals2d = SHELL_PROFILE.map((_, i) => {
     const a = SHELL_PROFILE[Math.max(0, i - 1)]
@@ -63,8 +69,9 @@ export function createDetailedSeatGeometry(): BufferGeometry {
     const len = Math.hypot(dz, dy)
     return [dy / len, -dz / len] as const
   })
-  const point = (t: number, k: number, back: boolean): [number, number, number] => {
-    const u = (k / ACROSS) * 2 - 1
+  const point = (r: number, k: number, back: boolean): [number, number, number] => {
+    const t = used[r]
+    const u = (k / across) * 2 - 1
     let [z, y] = SHELL_PROFILE[t]
     if (t >= BACKREST_FROM) z += 0.03 * u * u
     else y += 0.014 * u * u
@@ -114,14 +121,15 @@ export function createDetailedSeatGeometry(): BufferGeometry {
     piece(positions, indices, 1)
   }
 
-  // frente da concha e costas (conferidas no meio do assento), laterais,
-  // dobra da frente (virada para baixo e para trás) e borda de cima
-  grid((r, c) => point(r, c, false), rows, cols, [0, 1, 0], 3)
-  grid((r, c) => point(r, c, true), rows, cols, [0, -1, 0], 3)
-  grid((r, c) => point(r, 0, c === 1), rows, 2, [-1, 0, 0], 3)
-  grid((r, c) => point(r, ACROSS, c === 1), rows, 2, [1, 0, 0], 3)
+  // frente da concha (conferida no meio do assento), laterais, dobra da
+  // frente (virada para baixo e para trás) e borda de cima; de perto, as costas
+  const panRow = 3
+  grid((r, c) => point(r, c, false), rows, cols, [0, 1, 0], panRow)
+  grid((r, c) => point(r, 0, c === 1), rows, 2, [-1, 0, 0], panRow)
+  grid((r, c) => point(r, across, c === 1), rows, 2, [1, 0, 0], panRow)
   grid((r, c) => point(0, c, r === 1), 2, cols, [0, -0.95, -0.32])
   grid((r, c) => point(rows - 1, c, r === 1), 2, cols, [0, 0.98, 0.18])
+  if (!frontOnly) grid((r, c) => point(r, c, true), rows, cols, [0, -1, 0], panRow)
 
   // pé de metal sob o assento (só as quatro faces laterais)
   const leg: number[] = []
