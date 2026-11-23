@@ -15,8 +15,8 @@ Compra de ingressos em 3D para um estádio fictício, numa noite de final. A exp
 - Bairros com casas, quintais, piscinas e prédios com janelas acesas, duas vilinhas perto do complexo e um skyline ao fundo
 - Trânsito: carros na avenida e nos bairros, carros entrando no estacionamento pelas portarias, estacionando, desligando o motor, dando ré e indo embora, todos com faróis, lanternas e luz de freio
 - Cerca de 3 mil pessoas andando em volta do estádio, chegando pelos portões, vindo do estacionamento e passeando pelas calçadas
-- Abertura com fogos de artifício sobre o estádio, que contorna o complexo e termina na vista aérea
-- Tela de carregamento, dados da partida e painel de disponibilidade
+- Abertura em duas partes: primeiro o texto (Minas Gerais · Brasil, os dois times, Arena Aurora) aparece sobre o fundo preto enquanto a cena carrega; depois o título desce para o canto e a câmera contorna o complexo, com fogos de artifício, até a vista aérea
+- Dados da partida e painel de disponibilidade
 
 | Vista aérea | Estacionamento e avenida |
 | --- | --- |
@@ -74,9 +74,12 @@ React 19, TypeScript e Vite. A cena usa Three.js com React Three Fiber e drei, o
 **Desempenho.**
 - Cadeiras, carros, pessoas, árvores, casas e postes são instanciados, e a cena fica em torno de 800 mil triângulos por quadro.
 - Os refletores e o clarão dos fogos são calculados dentro dos materiais que recebem essa luz, então a cena só tem duas luzes reais (luar e ambiente) e nenhum mapa de sombra.
-- Os shaders são compilados em paralelo antes do primeiro quadro (`compileAsync`).
+- Os shaders são compilados em paralelo antes do primeiro quadro (`compileAsync`), e o primeiro quadro desenha a cena inteira, atrás da abertura de texto, para nada ser enviado à placa de vídeo no meio da animação.
+- As cadeiras 3D só aparecem de perto. De longe, o degrau mostra a cor de cada cadeira, lida de um mapa filtrado pela placa de vídeo (uma linha por fileira); 60 mil triângulos de um pixel eram a parte mais cara da vista aérea.
+- As superfícies foscas (chão, arquibancadas, cobertura, prédios, árvores) usam um material só de luz difusa, mais barato que o de reflexos.
+- A abertura de texto fica no `index.html` e só anima opacity e transform, então roda fora da thread principal enquanto o JavaScript monta a cena (ver `src/ui/bootSequence.ts`).
 - Nada de importante fica menor que um ou dois pixels, para não piscar com pouco antisserrilhado: as luzes pequenas (postes, refletores, faróis) são sprites com tamanho mínimo e brilho que conserva energia, as pessoas crescem um pouco quando estão longe, e as cadeiras e os carros parados ocupam a célula ou a vaga inteira e misturam a cor com a dos vizinhos (ver `src/scene/pixelScale.ts`).
-- Há três níveis de qualidade (`src/config/quality.ts`). O nível inicial depende do aparelho: baixo no celular e em máquinas fracas, médio no PC. Depois ele sobe ou desce conforme o FPS medido. Cada nível define um orçamento de pixels para o canvas, o antisserrilhado, a oclusão de ambiente, o bloom, o tamanho das texturas do chão e a quantidade de pessoas. No PC a resolução nunca fica abaixo da nativa (MSAA 4x no médio e no alto, 2x no baixo); no celular o nível baixo usa SMAA.
+- Há três níveis de qualidade (`src/config/quality.ts`). O nível inicial depende do aparelho: baixo no celular, em placas de vídeo integradas e em máquinas fracas; médio nas demais. Depois ele sobe ou desce conforme o FPS medido, priorizando a fluidez. Cada nível define um orçamento de pixels para o canvas, o antisserrilhado, a oclusão de ambiente, o bloom, o tamanho das texturas do chão e a quantidade de pessoas. No PC a resolução nunca fica abaixo da nativa (MSAA 4x no médio e no alto, SMAA no baixo).
 
 ## Estrutura
 
