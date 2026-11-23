@@ -29,9 +29,11 @@
 
       /*
        * Abertura: começa assim que a página abre, antes do JavaScript, e
-       * esconde o carregamento da cena. Só usa opacity e transform (e um leve
-       * blur), que o navegador anima fora da thread principal: continua lisa
-       * mesmo enquanto o JS monta o estádio.
+       * esconde o carregamento da cena. Só anima opacity e transform, que o
+       * navegador anima fora da thread principal: continua lisa mesmo enquanto
+       * o JS monta o estádio. (Não usar filter: blur nas animações: o navegador
+       * não consegue animar desfoque fora da thread principal, e a animação
+       * congelava ou pulava enquanto o estádio era montado.)
        *
        * Linha do tempo (s): local 0,2 → 2,15 · times 2,05 → 4,0 · título 4,0 → 5,3
        * O título fica parado (com um brilho passando) até a cena ficar pronta;
@@ -315,13 +317,11 @@
       @keyframes boot-in {
         from {
           opacity: 0;
-          transform: translateY(10px);
-          filter: blur(6px);
+          transform: translateY(12px) scale(0.985);
         }
         to {
           opacity: 1;
           transform: none;
-          filter: blur(0);
         }
       }
 
@@ -346,26 +346,22 @@
       @keyframes boot-from-left {
         from {
           opacity: 0;
-          transform: translateX(-22px);
-          filter: blur(5px);
+          transform: translateX(-28px);
         }
         to {
           opacity: 1;
           transform: none;
-          filter: blur(0);
         }
       }
 
       @keyframes boot-from-right {
         from {
           opacity: 0;
-          transform: translateX(22px);
-          filter: blur(5px);
+          transform: translateX(28px);
         }
         to {
           opacity: 1;
           transform: none;
-          filter: blur(0);
         }
       }
 

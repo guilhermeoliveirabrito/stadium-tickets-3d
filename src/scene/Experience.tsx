@@ -76,7 +76,7 @@ export function Experience() {
       <City />
       <PostFX tier={tier} />
       <ReadySignal skipIntro={devCamera} />
-      {!compiled && <Precompile onDone={onCompiled} />}
+      {!compiled && <Precompile onDone={onCompiled} waitForTitle={!devCamera} />}
     </Canvas>
   )
 }

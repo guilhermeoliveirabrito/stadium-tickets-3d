@@ -22,6 +22,18 @@ function getBoot() {
 }
 
 /**
+ * Quanto falta para o título terminar de aparecer (0 se já apareceu, se a
+ * abertura foi pulada ou se não há abertura). O envio pesado de dados para a
+ * placa de vídeo espera esse momento: feito no meio da animação, ele pode
+ * travar o desenho da tela por alguns instantes e a animação pular.
+ */
+export function bootTitleRemainingMs() {
+  const { introSkipped, phase } = useExperience.getState()
+  if (!getBoot() || introSkipped || phase !== 'loading') return 0
+  return Math.max(0, TITLE_SETTLED_MS - (performance.now() - (window.__bootStart ?? 0)))
+}
+
+/**
  * Leva cada linha do título do centro da tela para o canto inferior esquerdo
  * (técnica FLIP: mede antes e depois da troca de layout e anima a diferença
  * só com transform). O fundo preto some ao mesmo tempo, revelando a cena.
