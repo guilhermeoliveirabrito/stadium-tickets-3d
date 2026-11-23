@@ -33,15 +33,48 @@ export const QUALITY: Record<Tier, Quality> = {
   high: { pixels: 3.2e6, minDpr: 1, msaa: 4, smaa: false, ao: true, bloomLevels: 8 },
 }
 
-const forced = new URLSearchParams(window.location.search).get('q') as Tier | null
-const weak = (nav.deviceMemory ?? 8) <= 4 || (nav.hardwareConcurrency ?? 8) <= 4
+/** Nome da placa de vídeo, quando o navegador informa. */
+function gpuName() {
+  try {
+    const canvas = document.createElement('canvas')
+    const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl')
+    if (!gl) return ''
+    const info = gl.getExtension('WEBGL_debug_renderer_info')
+    const name = String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER) ?? '')
+    gl.getExtension('WEBGL_lose_context')?.loseContext()
+    return name
+  } catch {
+    return ''
+  }
+}
 
-export const START_TIER: Tier = forced && TIER_ORDER.includes(forced) ? forced : IS_MOBILE || weak ? 'low' : 'medium'
+export const GPU = gpuName()
+
+/**
+ * Placa integrada (Intel, AMD integrada, celulares, renderização por software).
+ * Esses aparelhos já começam no nível baixo: descer de nível no meio da
+ * abertura recria o pós-processamento e dá um engasgo.
+ */
+const INTEGRATED =
+  /Intel|Iris|UHD Graphics|HD Graphics|Radeon\(TM\) Graphics|Radeon Graphics|Vega \d|llvmpipe|SwiftShader|Mali|Adreno|PowerVR/i.test(
+    GPU,
+  ) && !/\bArc\b/i.test(GPU)
+
+const forced = new URLSearchParams(window.location.search).get('q') as Tier | null
+const lowMemory = (nav.deviceMemory ?? 8) <= 4
+const weak = lowMemory || (nav.hardwareConcurrency ?? 8) <= 4
+
+export const START_TIER: Tier =
+  forced && TIER_ORDER.includes(forced) ? forced : IS_MOBILE || weak || INTEGRATED ? 'low' : 'medium'
 export const MAX_TIER: Tier = forced ?? (IS_MOBILE ? 'medium' : 'high')
 export const TIER_LOCKED = !!forced
 
-/** Recursos decididos na carga (texturas e multidão não mudam depois). */
-const lite = START_TIER === 'low'
+/**
+ * Recursos decididos na carga (texturas e multidão não mudam depois). No PC as
+ * texturas do chão ficam na resolução cheia mesmo no nível baixo: a imagem é
+ * nativa e o chão de baixa resolução ficava borrado.
+ */
+const lite = IS_MOBILE || lowMemory
 export const GROUND_TEXTURE_SIZE = lite ? 2048 : 4096
 export const LIGHT_MAP_SIZE = lite ? 1024 : 2048
 export const CROWD_DENSITY = lite ? 0.5 : 1
