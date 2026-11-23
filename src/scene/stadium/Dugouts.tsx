@@ -7,7 +7,6 @@ import {
   Float32BufferAttribute,
   InstancedBufferAttribute,
   type InstancedMesh,
-  Matrix4,
   MeshLambertMaterial,
   Object3D,
 } from 'three'
@@ -83,11 +82,7 @@ function createTechnicalArea() {
 }
 
 const getDugoutParts = once(() => ({
-  shells: BENCHES.map((b) => {
-    const g = createShell(b.color)
-    g.translate(b.x, 0.05, 0)
-    return g
-  }),
+  shells: mergeGeometries(BENCHES.map((b) => createShell(b.color).translate(b.x, 0.05, 0)))!,
   shellMaterial: withLocalFill(new MeshLambertMaterial({ vertexColors: true }), 'dugout', 1.2),
   // cobertura de policarbonato: dá para ver os bancos de cima
   roofMaterial: withLocalFill(
@@ -95,7 +90,9 @@ const getDugoutParts = once(() => ({
     'dugout-roof',
     1.4,
   ),
-  roof: new BoxGeometry(WIDTH - 0.1, 0.03, DEPTH + 0.4).translate(0, 2.2, BACK_Z + DEPTH / 2 + 0.15),
+  roofs: mergeGeometries(
+    BENCHES.map((b) => new BoxGeometry(WIDTH - 0.1, 0.03, DEPTH + 0.4).translate(b.x, 2.25, BACK_Z + DEPTH / 2 + 0.15)),
+  )!,
   seat: createSeatGeometry(),
   seatMaterial: withLocalFill(new MeshLambertMaterial({ side: DoubleSide }), 'dugout-seats', 1.2),
   area: createTechnicalArea(),
@@ -133,16 +130,11 @@ function Seats() {
 
 export function Dugouts() {
   const parts = useMemo(() => getDugoutParts(), [])
-  const roofs = useMemo(() => BENCHES.map((b) => new Matrix4().makeTranslation(b.x, 0.05, 0)), [])
   return (
     <group>
-      {parts.shells.map((g, i) => (
-        <mesh key={i} geometry={g} material={parts.shellMaterial} />
-      ))}
+      <mesh geometry={parts.shells} material={parts.shellMaterial} />
       <Seats />
-      {roofs.map((m, i) => (
-        <mesh key={i} geometry={parts.roof} material={parts.roofMaterial} matrixAutoUpdate={false} matrix={m} />
-      ))}
+      <mesh geometry={parts.roofs} material={parts.roofMaterial} />
       <mesh geometry={parts.area} material={parts.lineMaterial} />
     </group>
   )

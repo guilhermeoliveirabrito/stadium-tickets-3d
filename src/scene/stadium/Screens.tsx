@@ -174,9 +174,8 @@ const getScreens = once(() => {
   )
   return {
     canvas,
-    frame,
-    screen,
-    placements,
+    frames: mergeGeometries(placements.map((m) => frame.clone().applyMatrix4(m)))!,
+    screens: mergeGeometries(placements.map((m) => screen.clone().applyMatrix4(m)))!,
     frameMaterial: new MeshLambertMaterial({ color: '#1b1e24' }),
     screenMaterial: new MeshBasicMaterial({ map: canvas, color: new Color(1.25, 1.25, 1.25) }),
   }
@@ -239,12 +238,8 @@ export function Screens() {
 
   return (
     <group>
-      {parts.placements.map((matrix, i) => (
-        <group key={i} matrixAutoUpdate={false} matrix={matrix}>
-          <mesh geometry={parts.frame} material={parts.frameMaterial} />
-          <mesh geometry={parts.screen} material={parts.screenMaterial} />
-        </group>
-      ))}
+      <mesh geometry={parts.frames} material={parts.frameMaterial} />
+      <mesh geometry={parts.screens} material={parts.screenMaterial} />
     </group>
   )
 }

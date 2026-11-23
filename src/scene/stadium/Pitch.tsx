@@ -198,25 +198,39 @@ function Goal({ side }: { side: 1 | -1 }) {
   )
 }
 
-// bandeirinhas: mastro branco e bandeira laranja, iluminados pelos refletores (paradas)
-const getFlagParts = once(() => ({
-  pole: new CylinderGeometry(0.025, 0.025, 1.5, 6).translate(0, 0.75, 0),
-  flag: new BoxGeometry(0.45, 0.32, 0.01).translate(0.23, 1.32, 0),
-  poleMaterial: withLocalFill(new MeshLambertMaterial({ color: '#f4f4f2' }), 'flag-pole', 1.4),
-  flagMaterial: withLocalFill(
-    new MeshLambertMaterial({ color: '#ff6a1a', emissive: '#ff5a1f', emissiveIntensity: 0.25 }),
-    'flag',
-    1.4,
-  ),
-}))
-
-function CornerFlag({ x, z }: { x: number; z: number }) {
-  const parts = useMemo(() => getFlagParts(), [])
+// bandeirinhas: mastro branco e bandeira laranja, iluminados pelos refletores
+// (paradas). As quatro ficam numa geometria só por material.
+const getFlagParts = once(() => {
+  const { halfLength: hl, halfWidth: hw } = PITCH
+  const corners = [
+    [hl, hw],
+    [hl, -hw],
+    [-hl, hw],
+    [-hl, -hw],
+  ]
   // a bandeira aponta para fora do campo, na diagonal
+  const place = (g: BufferGeometry, x: number, z: number) =>
+    g.clone().rotateY(Math.atan2(-z, x) + Math.PI / 4).translate(x, 0.05, z)
+  const pole = new CylinderGeometry(0.025, 0.025, 1.5, 6).translate(0, 0.75, 0)
+  const flag = new BoxGeometry(0.45, 0.32, 0.01).translate(0.23, 1.32, 0)
+  return {
+    poles: mergeGeometries(corners.map(([x, z]) => place(pole, x, z).toNonIndexed()))!,
+    flags: mergeGeometries(corners.map(([x, z]) => place(flag, x, z).toNonIndexed()))!,
+    poleMaterial: withLocalFill(new MeshLambertMaterial({ color: '#f4f4f2' }), 'flag-pole', 1.4),
+    flagMaterial: withLocalFill(
+      new MeshLambertMaterial({ color: '#ff6a1a', emissive: '#ff5a1f', emissiveIntensity: 0.25 }),
+      'flag',
+      1.4,
+    ),
+  }
+})
+
+function CornerFlags() {
+  const parts = useMemo(() => getFlagParts(), [])
   return (
-    <group position={[x, 0.05, z]} rotation-y={Math.atan2(-z, x) + Math.PI / 4}>
-      <mesh geometry={parts.pole} material={parts.poleMaterial} />
-      <mesh geometry={parts.flag} material={parts.flagMaterial} />
+    <group>
+      <mesh geometry={parts.poles} material={parts.poleMaterial} />
+      <mesh geometry={parts.flags} material={parts.flagMaterial} />
     </group>
   )
 }
@@ -224,21 +238,13 @@ function CornerFlag({ x, z }: { x: number; z: number }) {
 export function Pitch() {
   const geometry = useMemo(() => new ShapeGeometry(roundedRect(BOWL.halfX, BOWL.halfZ, BOWL.radius), 24), [])
   const material = useMemo(() => createPitchMaterial(), [])
-  const { halfLength: hl, halfWidth: hw } = PITCH
 
   return (
     <group>
       <mesh geometry={geometry} material={material} rotation-x={-Math.PI / 2} position-y={0.05} receiveShadow />
       <Goal side={1} />
       <Goal side={-1} />
-      {[
-        [hl, hw],
-        [hl, -hw],
-        [-hl, hw],
-        [-hl, -hw],
-      ].map(([x, z]) => (
-        <CornerFlag key={`${x}${z}`} x={x} z={z} />
-      ))}
+      <CornerFlags />
     </group>
   )
 }
