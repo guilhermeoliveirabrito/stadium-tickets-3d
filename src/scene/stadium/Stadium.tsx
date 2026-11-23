@@ -1,10 +1,12 @@
 import { useFrame } from '@react-three/fiber'
 import { QUALITY, type Tier } from '../../config/quality'
 import { AdBoards } from './AdBoards'
+import { Dugouts } from './Dugouts'
 import { Facade } from './Facade'
 import { Fireworks } from './Fireworks'
 import { LedRibbons } from './LedRibbons'
 import { Pitch } from './Pitch'
+import { Players } from './Players'
 import { Roof } from './Roof'
 import { Screens } from './Screens'
 import { Seats } from './Seats'
@@ -23,6 +25,8 @@ export function Stadium({ tier }: { tier: Tier }) {
   return (
     <group>
       <Pitch />
+      <Players />
+      <Dugouts />
       <AdBoards />
       <Stands />
       <LedRibbons />

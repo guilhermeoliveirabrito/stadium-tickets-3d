@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import {
+  BoxGeometry,
   BufferGeometry,
   CylinderGeometry,
   DoubleSide,
@@ -197,17 +198,25 @@ function Goal({ side }: { side: 1 | -1 }) {
   )
 }
 
+// bandeirinhas: mastro branco e bandeira laranja, iluminados pelos refletores (paradas)
+const getFlagParts = once(() => ({
+  pole: new CylinderGeometry(0.025, 0.025, 1.5, 6).translate(0, 0.75, 0),
+  flag: new BoxGeometry(0.45, 0.32, 0.01).translate(0.23, 1.32, 0),
+  poleMaterial: withLocalFill(new MeshLambertMaterial({ color: '#f4f4f2' }), 'flag-pole', 1.4),
+  flagMaterial: withLocalFill(
+    new MeshLambertMaterial({ color: '#ff6a1a', emissive: '#ff5a1f', emissiveIntensity: 0.25 }),
+    'flag',
+    1.4,
+  ),
+}))
+
 function CornerFlag({ x, z }: { x: number; z: number }) {
+  const parts = useMemo(() => getFlagParts(), [])
+  // a bandeira aponta para fora do campo, na diagonal
   return (
-    <group position={[x, 0, z]}>
-      <mesh position-y={0.75} castShadow>
-        <cylinderGeometry args={[0.02, 0.02, 1.5, 6]} />
-        <meshStandardMaterial color="#f2f2f2" />
-      </mesh>
-      <mesh position={[0.2, 1.32, 0]}>
-        <planeGeometry args={[0.4, 0.3]} />
-        <meshStandardMaterial color="#ff5a1f" side={DoubleSide} />
-      </mesh>
+    <group position={[x, 0.05, z]} rotation-y={Math.atan2(-z, x) + Math.PI / 4}>
+      <mesh geometry={parts.pole} material={parts.poleMaterial} />
+      <mesh geometry={parts.flag} material={parts.flagMaterial} />
     </group>
   )
 }
