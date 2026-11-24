@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { formatPrice } from '../lib/blocks'
 import { getSkyboxes, SKYBOX_AMENITIES } from '../lib/skyboxes'
-import { povKey, useExperience } from '../store/experience'
+import { ownedOrder, povKey, useExperience } from '../store/experience'
 import { Chevron } from './icons'
 import { PovPreview } from './PovPreview'
 
 /** Painel do camarote: preço do camarote inteiro, lugares, o que está incluso e a compra. */
 export function BoxPanel({ visible }: { visible: boolean }) {
   const selectedBox = useExperience((s) => s.selectedBox)
-  const order = useExperience((s) => s.order)
+  const orders = useExperience((s) => s.orders)
+  const openWallet = useExperience((s) => s.openWallet)
   const boxFrom = useExperience((s) => s.boxFrom)
   const selectBox = useExperience((s) => s.selectBox)
   const openCheckout = useExperience((s) => s.openCheckout)
@@ -22,7 +23,7 @@ export function BoxPanel({ visible }: { visible: boolean }) {
 
   const boxes = getSkyboxes()
   const box = boxes[shown]
-  const bought = order?.kind === 'box' && order.box === box.index
+  const owned = ownedOrder(orders, 'box', box.index)
   const shot = povShots[povKey('box', box.index)] ?? null
   const tab = visible ? 0 : -1
   const browse = (step: number) => selectBox((box.index + step + boxes.length) % boxes.length)
@@ -60,9 +61,9 @@ export function BoxPanel({ visible }: { visible: boolean }) {
           por camarote · {formatPrice(Math.round(box.price / box.capacity))} por pessoa
         </span>
       </p>
-      <p className="status" data-sold={box.sold}>
+      <p className={`status${owned ? ' status--owned' : ''}`} data-sold={box.sold && !owned}>
         <span className="status__dot" />
-        {box.sold ? 'Vendido para esta partida' : bought ? 'Comprado por você' : 'Disponível'}
+        {owned ? `Este camarote já é seu · pedido ${owned.id}` : box.sold ? 'Vendido para esta partida' : 'Disponível'}
       </p>
 
       <ul className="amenities">
@@ -76,16 +77,15 @@ export function BoxPanel({ visible }: { visible: boolean }) {
           <Chevron left />
           {boxFrom === 'sector' ? 'Setor' : boxFrom === 'seat' ? 'Cadeira' : 'Visão geral'}
         </button>
-        <button
-          className="btn btn--primary"
-          type="button"
-          onClick={() => openCheckout('box')}
-          tabIndex={tab}
-          disabled={box.sold || bought}
-          data-done={bought}
-        >
-          {box.sold ? 'Vendido' : bought ? 'Comprado ✓' : 'Comprar camarote'}
-        </button>
+        {owned ? (
+          <button className="btn btn--primary" type="button" onClick={() => openWallet(owned.id)} tabIndex={tab}>
+            Ver meu ingresso
+          </button>
+        ) : (
+          <button className="btn btn--primary" type="button" onClick={() => openCheckout('box')} tabIndex={tab} disabled={box.sold}>
+            {box.sold ? 'Vendido' : 'Comprar camarote'}
+          </button>
+        )}
       </div>
     </section>
   )

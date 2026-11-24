@@ -1,6 +1,6 @@
 import { formatPrice, getBlockInfo } from '../lib/blocks'
 import { getSkyboxes } from '../lib/skyboxes'
-import { seatPlace, useExperience } from '../store/experience'
+import { ownedOrder, seatPlace, useExperience } from '../store/experience'
 import { Chevron } from './icons'
 
 /** Vista do lugar (primeira pessoa): de onde é a vista, a dica de arrastar e o caminho para comprar. */
@@ -9,7 +9,7 @@ export function PovPanel({ visible }: { visible: boolean }) {
   const selectedSeat = useExperience((s) => s.selectedSeat)
   const selectedBlock = useExperience((s) => s.selectedBlock)
   const selectedBox = useExperience((s) => s.selectedBox)
-  const order = useExperience((s) => s.order)
+  const orders = useExperience((s) => s.orders)
   const openCheckout = useExperience((s) => s.openCheckout)
   const back = useExperience((s) => s.back)
   const startOver = useExperience((s) => s.startOver)
@@ -20,7 +20,7 @@ export function PovPanel({ visible }: { visible: boolean }) {
   const box = isBox ? getSkyboxes()[selectedBox] : null
   const where = box ? `Vista do Camarote ${box.number}` : `Sua vista · ${seatPlace(selectedSeat)}`
   // visitando a vista depois da compra: em vez de comprar, recomeçar
-  const bought = box ? order?.kind === 'box' && order.box === box.index : order?.kind === 'seat' && order.seat === selectedSeat
+  const bought = !!ownedOrder(orders, isBox ? 'box' : 'seat', isBox ? selectedBox : selectedSeat)
 
   return (
     <div className="pov" data-visible={visible} aria-hidden={!visible}>

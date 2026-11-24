@@ -2,7 +2,7 @@ import { Html } from '@react-three/drei'
 import { SKYBOX } from '../../config/stadium'
 import { formatPrice, getBlockInfo, seatLabel, seatPosition } from '../../lib/blocks'
 import { getSkyboxes } from '../../lib/skyboxes'
-import { useExperience } from '../../store/experience'
+import { ownedOrder, useExperience } from '../../store/experience'
 
 /** Rótulo flutuando sobre o bloco: número, preço e lugares livres. */
 export function BlockLabel() {
@@ -32,19 +32,27 @@ export function SeatTooltip() {
   const hoverSeat = useExperience((s) => s.hoverSeat)
   const selectedSeat = useExperience((s) => s.selectedSeat)
   const selectedBlock = useExperience((s) => s.selectedBlock)
+  const orders = useExperience((s) => s.orders)
   if (phase !== 'block' || hoverSeat < 0) return null
+  const owned = !!ownedOrder(orders, 'seat', hoverSeat)
   const seat = seatLabel(hoverSeat)
   const [x, y, z] = seatPosition(hoverSeat)
   const price = getBlockInfo(selectedBlock).price
 
   return (
     <Html position={[x, y + 0.9, z]} center zIndexRange={[4, 0]} style={{ pointerEvents: 'none' }}>
-      <div className="seat-tip" data-taken={seat.taken} key={hoverSeat}>
+      <div className="seat-tip" data-taken={seat.taken} data-owned={owned} key={hoverSeat}>
         <span className="seat-tip__where">
           Fileira {seat.row} · Cadeira {seat.number}
         </span>
         <span className="seat-tip__status">
-          {seat.taken ? 'Ocupada' : hoverSeat === selectedSeat ? `Sua escolha · ${formatPrice(price)}` : formatPrice(price)}
+          {owned
+            ? 'Seu ingresso'
+            : seat.taken
+              ? 'Ocupada'
+              : hoverSeat === selectedSeat
+                ? `Sua escolha · ${formatPrice(price)}`
+                : formatPrice(price)}
         </span>
       </div>
     </Html>
@@ -56,6 +64,7 @@ export function BoxLabel() {
   const phase = useExperience((s) => s.phase)
   const hoverBox = useExperience((s) => s.hoverBox)
   const selectedBox = useExperience((s) => s.selectedBox)
+  const orders = useExperience((s) => s.orders)
   if (phase !== 'aerial' && phase !== 'sector' && phase !== 'box') return null
   if (hoverBox < 0 || (phase === 'box' && hoverBox === selectedBox)) return null
   const box = getSkyboxes()[hoverBox]
@@ -71,7 +80,7 @@ export function BoxLabel() {
         <span className="block-label__number">Camarote {box.number}</span>
         <span className="block-label__dot" />
         <span className="block-label__price" data-sold={box.sold}>
-          {box.sold ? 'Vendido' : formatPrice(box.price)}
+          {ownedOrder(orders, 'box', box.index) ? 'Seu camarote' : box.sold ? 'Vendido' : formatPrice(box.price)}
         </span>
         <span className="block-label__stem" />
       </div>

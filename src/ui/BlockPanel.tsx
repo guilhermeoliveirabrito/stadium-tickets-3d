@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { formatPrice, getBlockInfo, seatLabel } from '../lib/blocks'
-import { useExperience } from '../store/experience'
+import { ownedOrder, useExperience } from '../store/experience'
 import { Chevron, EyeIcon } from './icons'
 
 const canHover = window.matchMedia('(hover: hover)').matches
@@ -12,12 +12,16 @@ export function BlockPanel({ visible }: { visible: boolean }) {
   const back = useExperience((s) => s.back)
   const openSeat = useExperience((s) => s.openSeat)
   const openPov = useExperience((s) => s.openPov)
+  const openWallet = useExperience((s) => s.openWallet)
+  const orders = useExperience((s) => s.orders)
   const [shown, setShown] = useState(selectedBlock)
   if (selectedBlock >= 0 && selectedBlock !== shown) setShown(selectedBlock)
   if (shown < 0) return null
 
   const info = getBlockInfo(shown)
   const seat = selectedSeat >= 0 ? seatLabel(selectedSeat) : null
+  const owned = selectedSeat >= 0 ? ownedOrder(orders, 'seat', selectedSeat) : null
+  const ownsAny = orders.some((o) => o.kind === 'seat')
   const tab = visible ? 0 : -1
 
   return (
@@ -42,18 +46,24 @@ export function BlockPanel({ visible }: { visible: boolean }) {
           <span className="legend__dot legend__dot--picked" />
           Sua escolha
         </li>
+        {ownsAny && (
+          <li>
+            <span className="legend__dot legend__dot--owned" />
+            Seus ingressos
+          </li>
+        )}
       </ul>
 
       <div className="picked" data-empty={!seat}>
         {seat ? (
           <>
             <div>
-              <p className="picked__label">Sua cadeira</p>
+              <p className="picked__label">{owned ? 'Já é sua' : 'Sua cadeira'}</p>
               <p className="picked__seat">
                 Fileira {seat.row} · Cadeira {seat.number}
               </p>
             </div>
-            <p className="picked__price">{formatPrice(info.price)}</p>
+            <p className="picked__price">{owned ? owned.id : formatPrice(info.price)}</p>
           </>
         ) : (
           <p className="picked__label">Nenhuma cadeira escolhida</p>
@@ -72,10 +82,16 @@ export function BlockPanel({ visible }: { visible: boolean }) {
               <EyeIcon />
               Ver a vista
             </button>
-            <button className="btn btn--primary" type="button" onClick={openSeat} tabIndex={tab}>
-              Continuar
-              <Chevron />
-            </button>
+            {owned ? (
+              <button className="btn btn--primary" type="button" onClick={() => openWallet(owned.id)} tabIndex={tab}>
+                Ver ingresso
+              </button>
+            ) : (
+              <button className="btn btn--primary" type="button" onClick={openSeat} tabIndex={tab}>
+                Continuar
+                <Chevron />
+              </button>
+            )}
           </>
         )}
       </div>

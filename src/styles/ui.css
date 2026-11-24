@@ -119,6 +119,10 @@
   font-variant-numeric: tabular-nums;
 }
 
+.event__date--short {
+  display: none;
+}
+
 .steps {
   display: flex;
   gap: 2px;
@@ -262,7 +266,8 @@
 
 .legend {
   display: flex;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 6px 16px;
   margin: 14px 0 0;
   padding: 0;
   list-style: none;
@@ -274,6 +279,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  white-space: nowrap;
 }
 
 .legend__dot {
@@ -768,6 +774,16 @@
 .panel__kicker--spaced,
 .panel__head--spaced {
   margin-top: 14px;
+}
+
+.status--owned .status__dot,
+.legend__dot--owned {
+  background: #ffb703;
+  box-shadow: 0 0 0 4px rgba(255, 183, 3, 0.22);
+}
+
+.legend__dot--owned {
+  box-shadow: none;
 }
 
 .upsell {
@@ -1400,6 +1416,175 @@
   background: rgba(255, 255, 255, 0.9);
 }
 
+/* meus ingressos ---------------------------------------------------------------- */
+
+.wallet-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 8px 0 15px;
+  border-radius: 999px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 680;
+  white-space: nowrap;
+  animation: wallet-in 0.7s var(--ease-out) both;
+}
+
+.wallet-btn:hover {
+  background: var(--paper-strong);
+}
+
+.wallet-btn__count {
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 780;
+}
+
+@keyframes wallet-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.9);
+  }
+  60% {
+    transform: scale(1.06);
+  }
+}
+
+.saved {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 10px;
+  color: #fff;
+  font-size: 12.5px;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+}
+
+.saved b {
+  font-weight: 720;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.sheet--wallet {
+  background: rgba(5, 7, 12, 0.55);
+}
+
+.wallet {
+  width: min(440px, 100%);
+  /* sólido: nada da cena ou dos painéis aparece através da carteira */
+  background: #f6f6f3;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.wallet__close {
+  margin-left: auto;
+}
+
+.wallet__intro {
+  margin: 10px 0 0;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+}
+
+.wallet__list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wallet__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 12px 8px 8px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: inset 0 0 0 1px rgba(15, 17, 21, 0.07);
+  text-align: left;
+  transition:
+    background 0.2s,
+    transform 0.2s var(--ease-out);
+}
+
+.wallet__item:hover {
+  background: #fff;
+  transform: translateY(-1px);
+}
+
+.wallet__thumb {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 84px;
+  height: 52px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #0f1520;
+  color: #fff;
+}
+
+.wallet__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.wallet__text {
+  display: grid;
+  flex: 1;
+  gap: 1px;
+  min-width: 0;
+}
+
+.wallet__title {
+  font-size: 14.5px;
+  font-weight: 740;
+}
+
+.wallet__sub,
+.wallet__meta {
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wallet__meta {
+  font-variant-numeric: tabular-nums;
+}
+
+.wallet__empty {
+  margin: 14px 0 4px;
+  color: var(--ink-soft);
+  font-size: 13.5px;
+}
+
+.wallet .ticket {
+  margin-top: 12px;
+  box-shadow: 0 14px 36px -16px rgba(0, 0, 0, 0.45);
+}
+
+.wallet .actions .btn {
+  flex: 1;
+}
+
 /* rótulos dentro da cena ---------------------------------------------------- */
 
 .block-label {
@@ -1468,6 +1653,10 @@
   color: #ff8d8d;
 }
 
+.seat-tip[data-owned='true'] .seat-tip__status {
+  color: #ffcf5c;
+}
+
 @keyframes label-in {
   from {
     opacity: 0;
@@ -1489,8 +1678,15 @@
     right: 14px;
   }
 
+  .topbar {
+    gap: 10px;
+  }
+
   .event__sep--wide,
-  .event__meta--wide,
+  .event__meta--wide {
+    display: none;
+  }
+
   .event__vs,
   .event__teams {
     font-size: 0;
@@ -1586,6 +1782,33 @@
   .panel__kicker--spaced,
   .panel__head--spaced {
     margin-top: 12px;
+  }
+
+  .brand span {
+    display: none;
+  }
+
+  .brand {
+    padding: 7px;
+  }
+
+  .wallet-btn {
+    padding: 0 6px 0 11px;
+  }
+
+  .wallet-btn__label {
+    display: none;
+  }
+
+  /* com o botão de ingressos, o cabeçalho perde o dia da semana nas telas mais estreitas */
+  @media (max-width: 380px) {
+    .topbar[data-wallet='true'] .event__date {
+      display: none;
+    }
+
+    .topbar[data-wallet='true'] .event__date--short {
+      display: inline;
+    }
   }
 
   /* na escolha da cadeira, três botões: o de voltar fica só com a seta */
@@ -1701,6 +1924,51 @@
 
   .ticket__grid dd {
     font-size: 15px;
+  }
+
+  /* ingresso compacto: cabe inteiro na tela, com os botões */
+  .done {
+    margin-bottom: 8px;
+    font-size: 16px;
+  }
+
+  .ticket__stage {
+    font-size: 10px;
+    text-align: right;
+  }
+
+  .ticket__match {
+    padding-top: 10px;
+    font-size: 17px;
+  }
+
+  .ticket__visual {
+    margin-top: 8px;
+  }
+
+  .ticket__place {
+    padding-top: 8px;
+  }
+
+  .ticket__tear {
+    margin-top: 6px;
+  }
+
+  .ticket-code {
+    width: 76px;
+    height: 76px;
+  }
+
+  .ticket__demo {
+    padding: 6px 16px 9px;
+  }
+
+  .saved {
+    margin-top: 8px;
+  }
+
+  .sheet__card--ticket .actions {
+    margin-top: 8px;
   }
 
   .stadium-map {

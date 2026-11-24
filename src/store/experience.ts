@@ -8,7 +8,9 @@ import { getSkyboxes } from '../lib/skyboxes'
  * → block (de frente para o bloco, escolhendo a cadeira) → seat (zoom na
  * cadeira) ⇄ pov (a vista de quem senta nela) → checkout (pagamento) → done
  * (ingresso). Os camarotes têm uma etapa própria, box, aberta da visão geral,
- * do setor ou da cadeira, e também seguem para o pagamento.
+ * do setor ou da cadeira, e também seguem para o pagamento. Os ingressos
+ * comprados ficam em "Meus ingressos" (a carteira), aberta por cima de
+ * qualquer etapa.
  */
 export type Phase = 'loading' | 'intro' | 'aerial' | 'sector' | 'block' | 'seat' | 'pov' | 'box' | 'checkout' | 'done'
 
@@ -31,10 +33,27 @@ export interface Order extends OrderItem {
   total: number
   name: string
   method: PaymentMethod
+  /** quando foi comprado (ms) */
+  createdAt: number
+  /** foto da vista do lugar, guardada junto com o ingresso */
+  shot?: string
 }
 
 /** taxa de serviço sobre o valor do ingresso */
 export const SERVICE_FEE = 0.1
+
+/** quantos ingressos ficam guardados no navegador (as fotos ocupam espaço) */
+const MAX_SAVED = 12
+const STORAGE_KEY = 'tribuna.ingressos.v1'
+
+/** Volta da vista do lugar aberta pela carteira: a etapa e a escolha de antes. */
+interface PovReturn {
+  phase: Phase
+  selectedBlock: number
+  selectedSeat: number
+  selectedBox: number
+  orderId: string
+}
 
 interface ExperienceState {
   phase: Phase
@@ -55,11 +74,18 @@ interface ExperienceState {
   povFrom: Phase
   /** de onde é a vista em primeira pessoa: da cadeira escolhida ou do camarote aberto */
   povKind: 'seat' | 'box'
+  /** vista do lugar aberta pela carteira: para onde voltar */
+  povReturn: PovReturn | null
   /** item em pagamento e a etapa para onde o "voltar" do pagamento leva */
   checkoutItem: OrderItem | null
   checkoutFrom: Phase
-  /** compra concluída (o ingresso) */
+  /** compra que acabou de ser concluída (o ingresso mostrado na confirmação) */
   order: Order | null
+  /** todos os ingressos comprados, do mais novo ao mais antigo (guardados no navegador) */
+  orders: Order[]
+  /** carteira aberta e o ingresso aberto nela (null = a lista) */
+  walletOpen: boolean
+  walletOrder: string | null
   /** fotos da vista de cada lugar (chave de povKey), para o cartão, o painel do camarote e o ingresso */
   povShots: Record<string, string>
   setPhase: (phase: Phase) => void
@@ -89,6 +115,13 @@ interface ExperienceState {
   /** recomeça do zero, na visão geral */
   startOver: () => void
   setPovShot: (key: string, url: string) => void
+  /** abre a carteira (na lista, ou já num ingresso) */
+  openWallet: (orderId?: string | null) => void
+  closeWallet: () => void
+  /** abre um ingresso da carteira (null = volta para a lista) */
+  showWalletOrder: (orderId: string | null) => void
+  /** da carteira para a vista do lugar de um ingresso; "voltar" retorna à carteira */
+  openOrderPov: (orderId: string) => void
   /** volta uma etapa (pov → cadeira → bloco → setor → visão geral; camarote e pagamento → de onde vieram) */
   back: () => void
 }
@@ -100,6 +133,45 @@ function orderId() {
   for (let i = 0; i < 6; i++) id += alphabet[Math.floor(Math.random() * alphabet.length)]
   return `TRB-${id}`
 }
+
+/** Ingressos guardados no navegador (some sem erro se o armazenamento não estiver disponível). */
+function loadOrders(): Order[] {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY)
+    const parsed = raw ? (JSON.parse(raw) as Order[]) : []
+    const { seats } = getLayout()
+    const boxes = getSkyboxes()
+    // só ingressos que ainda fazem sentido neste estádio
+    return Array.isArray(parsed)
+      ? parsed.filter((o) => (o.kind === 'seat' ? o.seat >= 0 && o.seat < seats.count : o.box >= 0 && o.box < boxes.length))
+      : []
+  } catch {
+    return []
+  }
+}
+
+function saveOrders(orders: Order[]) {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(orders))
+  } catch {
+    // sem espaço (as fotos ocupam espaço): guarda sem as fotos
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(orders.map(({ shot: _shot, ...rest }) => rest)))
+    } catch {
+      // armazenamento indisponível (aba anônima, por exemplo): fica só nesta visita
+    }
+  }
+}
+
+/** A pessoa já tem ingresso para esta cadeira (ou camarote)? */
+export function ownedOrder(orders: Order[], kind: 'seat' | 'box', index: number) {
+  return orders.find((o) => o.kind === kind && (kind === 'seat' ? o.seat === index : o.box === index)) ?? null
+}
+
+/** Chave da foto da vista de um lugar ("seat:123" ou "box:6"). */
+export const povKey = (kind: 'seat' | 'box', index: number) => `${kind}:${index}`
+
+export const orderPlace = (order: Order) => (order.kind === 'seat' ? order.seat : order.box)
 
 export const useExperience = create<ExperienceState>((set, get) => ({
   phase: 'loading',
@@ -114,9 +186,13 @@ export const useExperience = create<ExperienceState>((set, get) => ({
   boxFrom: 'aerial',
   povFrom: 'seat',
   povKind: 'seat',
+  povReturn: null,
   checkoutItem: null,
   checkoutFrom: 'seat',
   order: null,
+  orders: loadOrders(),
+  walletOpen: false,
+  walletOrder: null,
   povShots: {},
   setPhase: (phase) => set({ phase }),
   setSceneReady: () => set({ sceneReady: true }),
@@ -148,7 +224,7 @@ export const useExperience = create<ExperienceState>((set, get) => ({
     if (!from && !fromTicket) return
     if (kind === 'seat' && selectedSeat < 0) return
     if (kind === 'box' && selectedBox < 0) return
-    set({ phase: 'pov', povFrom: phase, povKind: kind, hoverSeat: -1 })
+    set({ phase: 'pov', povFrom: phase, povKind: kind, povReturn: null, hoverSeat: -1 })
   },
   setHoverBox: (hoverBox) => {
     if (get().hoverBox !== hoverBox) set({ hoverBox })
@@ -165,26 +241,39 @@ export const useExperience = create<ExperienceState>((set, get) => ({
     })
   },
   openCheckout: (kind) => {
-    const { phase, selectedSeat, selectedBlock, selectedBox } = get()
+    const { phase, selectedSeat, selectedBlock, selectedBox, orders } = get()
     const fromPov = phase === 'pov' && get().povKind === kind
     if (kind === 'seat') {
       if ((phase !== 'seat' && !fromPov) || selectedSeat < 0) return
+      // o mesmo lugar não é vendido duas vezes
+      if (ownedOrder(orders, 'seat', selectedSeat)) return
       const item: OrderItem = { kind, seat: selectedSeat, block: selectedBlock, box: -1, price: getBlockInfo(selectedBlock).price }
       set({ checkoutItem: item, checkoutFrom: phase, phase: 'checkout' })
     } else {
       if ((phase !== 'box' && !fromPov) || selectedBox < 0 || getSkyboxes()[selectedBox].sold) return
+      if (ownedOrder(orders, 'box', selectedBox)) return
       const item: OrderItem = { kind, seat: -1, block: -1, box: selectedBox, price: getSkyboxes()[selectedBox].price }
       set({ checkoutItem: item, checkoutFrom: phase, phase: 'checkout' })
     }
   },
   confirmPurchase: (name, method) => {
-    const { phase, checkoutItem } = get()
+    const { phase, checkoutItem, orders, povShots } = get()
     if (phase !== 'checkout' || !checkoutItem) return
     const fee = Math.round(checkoutItem.price * SERVICE_FEE)
-    set({
-      phase: 'done',
-      order: { ...checkoutItem, id: orderId(), fee, total: checkoutItem.price + fee, name: name.trim(), method },
-    })
+    const place = checkoutItem.kind === 'seat' ? checkoutItem.seat : checkoutItem.box
+    const order: Order = {
+      ...checkoutItem,
+      id: orderId(),
+      fee,
+      total: checkoutItem.price + fee,
+      name: name.trim(),
+      method,
+      createdAt: Date.now(),
+      shot: povShots[povKey(checkoutItem.kind, place)],
+    }
+    const next = [order, ...orders].slice(0, MAX_SAVED)
+    saveOrders(next)
+    set({ phase: 'done', order, orders: next })
   },
   startOver: () =>
     set({
@@ -196,10 +285,61 @@ export const useExperience = create<ExperienceState>((set, get) => ({
       selectedBox: -1,
       hoverBox: -1,
       checkoutItem: null,
+      povReturn: null,
+      walletOpen: false,
     }),
-  setPovShot: (key, url) => set({ povShots: { ...get().povShots, [key]: url } }),
+  setPovShot: (key, url) => {
+    const { povShots, orders } = get()
+    // ingresso guardado sem foto (comprado antes de ela existir): ganha a foto agora
+    const missing = orders.some((o) => !o.shot && povKey(o.kind, orderPlace(o)) === key)
+    const nextOrders = missing ? orders.map((o) => (!o.shot && povKey(o.kind, orderPlace(o)) === key ? { ...o, shot: url } : o)) : orders
+    if (missing) saveOrders(nextOrders)
+    set({ povShots: { ...povShots, [key]: url }, orders: nextOrders })
+  },
+  openWallet: (orderId = null) => set({ walletOpen: true, walletOrder: orderId }),
+  closeWallet: () => set({ walletOpen: false, walletOrder: null }),
+  showWalletOrder: (walletOrder) => set({ walletOrder }),
+  openOrderPov: (orderId) => {
+    const { phase, orders, selectedBlock, selectedSeat, selectedBox, povReturn } = get()
+    const order = orders.find((o) => o.id === orderId)
+    if (!order) return
+    // guarda onde a pessoa estava (se já veio de uma vista aberta pela carteira, mantém a volta original)
+    const back: PovReturn = { ...(povReturn ?? { phase, selectedBlock, selectedSeat, selectedBox }), orderId }
+    const { seats } = getLayout()
+    set({
+      walletOpen: false,
+      phase: 'pov',
+      povKind: order.kind,
+      povFrom: phase,
+      povReturn: back,
+      selectedSeat: order.kind === 'seat' ? order.seat : -1,
+      selectedBlock: order.kind === 'seat' ? seats.block[order.seat] : -1,
+      selectedBox: order.kind === 'box' ? order.box : -1,
+      hoverSeat: -1,
+      hoverBox: -1,
+      hoverBlock: -1,
+    })
+  },
   back: () => {
-    const { phase, boxFrom, povFrom, checkoutFrom } = get()
+    const { phase, boxFrom, povFrom, checkoutFrom, povReturn, walletOpen } = get()
+    // com a carteira aberta, "voltar" (Esc) fecha a carteira
+    if (walletOpen) {
+      set({ walletOpen: false, walletOrder: null })
+      return
+    }
+    if (phase === 'pov' && povReturn) {
+      // vista aberta pela carteira: volta para onde a pessoa estava, com a carteira no ingresso
+      set({
+        phase: povReturn.phase,
+        selectedBlock: povReturn.selectedBlock,
+        selectedSeat: povReturn.selectedSeat,
+        selectedBox: povReturn.selectedBox,
+        povReturn: null,
+        walletOpen: true,
+        walletOrder: povReturn.orderId,
+      })
+      return
+    }
     if (phase === 'block') set({ phase: 'sector', hoverSeat: -1, selectedSeat: -1 })
     else if (phase === 'sector') set({ phase: 'aerial', selectedBlock: -1, hoverBlock: -1, hoverBox: -1 })
     else if (phase === 'seat') set({ phase: 'block' })
@@ -208,9 +348,6 @@ export const useExperience = create<ExperienceState>((set, get) => ({
     else if (phase === 'checkout') set({ phase: checkoutFrom })
   },
 }))
-
-/** Chave da foto da vista de um lugar ("seat:123" ou "box:6"). */
-export const povKey = (kind: 'seat' | 'box', index: number) => `${kind}:${index}`
 
 /** Lugar de uma cadeira em texto: "Bloco 232 · Fileira 7 · Cadeira 11". */
 export function seatPlace(seat: number) {

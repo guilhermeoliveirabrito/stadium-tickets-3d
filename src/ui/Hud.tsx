@@ -11,6 +11,7 @@ import { PovPanel } from './PovPanel'
 import { SeatPanel } from './SeatPanel'
 import { SectorPanel } from './SectorPanel'
 import { TicketPanel } from './TicketPanel'
+import { WalletPanel } from './WalletPanel'
 
 /** Esc volta uma etapa (bloco → setor → visão geral). */
 function useBackKey() {
@@ -25,6 +26,9 @@ function useBackKey() {
 
 export function Hud() {
   const phase = useExperience((s) => s.phase)
+  // com "Meus ingressos" aberto, os painéis da etapa saem de cena (e voltam ao fechar)
+  const walletOpen = useExperience((s) => s.walletOpen)
+  const show = (p: string) => phase === p && !walletOpen
   useBootSequence()
   useBackKey()
   // a cada etapa o cursor volta ao normal (o objeto sob ele pode ter deixado de ser clicável)
@@ -40,14 +44,15 @@ export function Hud() {
     <div className="hud" data-phase={phase}>
       <IntroOverlay />
       <Header visible={choosing} step={step} />
-      <OverviewPanel visible={phase === 'aerial'} />
-      <SectorPanel visible={phase === 'sector'} />
-      <BlockPanel visible={phase === 'block'} />
-      <SeatPanel visible={phase === 'seat'} />
-      <PovPanel visible={phase === 'pov'} />
-      <BoxPanel visible={phase === 'box'} />
-      <CheckoutPanel visible={phase === 'checkout'} />
-      <TicketPanel visible={phase === 'done'} />
+      <OverviewPanel visible={show('aerial')} />
+      <SectorPanel visible={show('sector')} />
+      <BlockPanel visible={show('block')} />
+      <SeatPanel visible={show('seat')} />
+      <PovPanel visible={show('pov')} />
+      <BoxPanel visible={show('box')} />
+      <CheckoutPanel visible={show('checkout')} />
+      <TicketPanel visible={show('done')} />
+      <WalletPanel />
     </div>
   )
 }

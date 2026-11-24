@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber'
-import { useLayoutEffect, useMemo, useRef } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import {
+  Color,
   DataTexture,
   DoubleSide,
   Frustum,
@@ -25,6 +26,7 @@ import { extendShader, pixelUniforms } from '../pixelScale'
 import { HIGHLIGHT_LINEAR, SELECTION_FUNCTIONS, SELECTION_HEADER, selectionUniforms } from '../selection'
 import { withLocalFill } from './materials'
 import { createDetailedSeatGeometry, createSeatGeometry } from './seatGeometry'
+import { paintSeatMapSeat } from './seatMap'
 
 /**
  * As cadeiras 3D só aparecem de perto. Entre 3 e 2 pixels por cadeira elas
@@ -237,9 +239,41 @@ const getLightChunks = once(() => {
     mesh.instanceMatrix.array.set(data.matrices.subarray(start * 16, end * 16))
     mesh.instanceColor = new InstancedBufferAttribute(data.colors.slice(start * 3, end * 3), 3)
     mesh.computeBoundingSphere()
+    mesh.userData.start = start
     return mesh
   })
 })
+
+/** cor das cadeiras com ingresso comprado (âmbar), em espaço linear */
+const OWNED_SEAT_COLOR = new Color('#ffb703')
+const ownedSeats = new Set<number>()
+/** muda a cada cadeira pintada: a versão detalhada é refeita com as cores novas */
+const owned = { version: 0 }
+
+/**
+ * Pinta de âmbar as cadeiras com ingresso comprado, nas três formas em que
+ * aparecem: a versão leve, a detalhada (refeita no próximo quadro) e o mapa
+ * de cores do degrau, usado de longe.
+ */
+function markOwnedSeats(seats: number[]) {
+  const data = getSeatData()
+  for (const seat of seats) {
+    if (ownedSeats.has(seat)) continue
+    ownedSeats.add(seat)
+    OWNED_SEAT_COLOR.toArray(data.colors, seat * 3)
+    for (const mesh of getLightChunks()) {
+      const start = mesh.userData.start as number
+      if (seat < start || seat >= start + mesh.count) continue
+      const attribute = mesh.instanceColor!
+      OWNED_SEAT_COLOR.toArray(attribute.array as Float32Array, (seat - start) * 3)
+      attribute.addUpdateRange((seat - start) * 3, 3)
+      attribute.needsUpdate = true
+      break
+    }
+    paintSeatMapSeat(seat, OWNED_SEAT_COLOR)
+    owned.version++
+  }
+}
 
 /**
  * Cadeiras em duas versões: uma leve (quatro triângulos) para todas e uma
@@ -276,7 +310,14 @@ export function Seats({ detailBudget }: { detailBudget: number }) {
     next: new Uint8Array(blocks.length),
     order: new Int16Array(blocks.length),
     score: new Float32Array(blocks.length),
+    ownedVersion: 0,
   })
+
+  // ingressos comprados (também os guardados de visitas anteriores): cadeiras em âmbar
+  const orders = useExperience((s) => s.orders)
+  useEffect(() => {
+    markOwnedSeats(orders.filter((o) => o.kind === 'seat').map((o) => o.seat))
+  }, [orders])
 
   useFrame((state) => {
     const group = light.current
@@ -340,7 +381,8 @@ export function Seats({ detailBudget }: { detailBudget: number }) {
     if (full && nearestPx < SIMPLE_BELOW_PX) near.geometry = detailSimpleGeometry
     else if (!full && nearestPx > FULL_ABOVE_PX) near.geometry = detailGeometry
 
-    let changed = false
+    let changed = l.ownedVersion !== owned.version
+    l.ownedVersion = owned.version
     for (let b = 0; b < blocks.length && !changed; b++) changed = l.next[b] !== l.inSet[b]
     if (!changed) return
 
