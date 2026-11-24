@@ -21,7 +21,9 @@ Compra de ingressos em 3D para um estádio fictício, numa noite de final. A exp
 - Dados da partida e painel de disponibilidade
 - Escolha do setor: o bloco sob o cursor fica laranja, com número e preço; ao clicar, a câmera desce até a arquibancada e o painel mostra o preço, os lugares livres e o tipo de vista (meio-campo, lateral, diagonal, atrás do gol)
 - Escolha da cadeira: a câmera fica de frente para o bloco, com as cadeiras livres em azul e as ocupadas em vermelho; a cadeira sob o cursor mostra fileira, número e preço, e a escolhida fica branca. De perto as cadeiras usam um modelo detalhado (concha moldada, encosto curvo e pé de metal)
-- Camarotes VIP à venda: 24 camarotes com interior iluminado (poltronas de couro, bar, adega, TVs), preço do camarote inteiro e por pessoa, disponibilidade, vista própria e reserva
+- Camarotes VIP à venda: 24 camarotes com interior iluminado (poltronas de couro, bar, adega, TVs), preço do camarote inteiro e por pessoa, disponibilidade e vista própria
+- Zoom na cadeira escolhida e a vista de quem senta nela: a câmera desce até os olhos do torcedor enquanto vira para o campo, e arrastar (mouse ou dedo) olha em volta
+- Pagamento fictício (resumo, taxa, nome no ingresso e forma de pagamento) e o ingresso final, com a foto da vista do lugar, um mapa do estádio com o lugar marcado, portão, código do pedido e um código 2D ilustrativo; a compra solta os fogos de novo
 - Painéis de LED na frente dos anéis e placas em volta do campo com o GitHub do autor
 - Dois telões sobre a cobertura: placar com os dias até o jogo, a cadeira (ou o camarote) escolhida e, de vez em quando, o GitHub do autor
 - Os dois times aquecendo no gramado, cada um com a sua bola (roda de passes, finalização contra o goleiro e tiros de corrida), bancos de reservas com a área técnica, rede nos gols e bandeirinhas de escanteio
@@ -44,6 +46,12 @@ Compra de ingressos em 3D para um estádio fictício, numa noite de final. A exp
 | --- | --- |
 | ![Escolha da cadeira de frente para o bloco](docs/cadeira.jpg) | ![Camarote VIP visto de frente](docs/camarote.jpg) |
 
+| Zoom na cadeira | Vista do lugar |
+| --- | --- |
+| ![Zoom na cadeira escolhida com o cartão do ingresso](docs/cadeira-zoom.jpg) | ![O campo visto da cadeira escolhida](docs/pov.jpg) |
+
+![Ingresso com a foto da vista, o mapa do estádio e o código](docs/ingresso.jpg)
+
 | Campo, jogadores e bancos | Telão e dirigível |
 | --- | --- |
 | ![Vista atrás do gol com os jogadores aquecendo](docs/campo.jpg) | ![Telão sobre a cobertura e o dirigível com o GitHub](docs/telao.jpg) |
@@ -54,13 +62,15 @@ Compra de ingressos em 3D para um estádio fictício, numa noite de final. A exp
   <img src="docs/mobile.jpg" alt="Versão para celular" width="260" />
   &nbsp;
   <img src="docs/mobile-cadeira.jpg" alt="Escolha da cadeira no celular" width="260" />
+  &nbsp;
+  <img src="docs/mobile-ingresso.jpg" alt="Ingresso no celular" width="260" />
 </p>
 
 ## Roadmap
 
 - [x] **Etapa 1 · Estádio e vista aérea:** geometria, entorno, iluminação noturna, trânsito, abertura e interface base
 - [x] **Etapa 2 · Setores e cadeiras:** blocos destacados ao passar o mouse, câmera descendo até o setor escolhido e vista de frente para o bloco, com cadeiras livres e ocupadas
-- [ ] **Etapa 3 · Ingresso e POV:** zoom na cadeira, cartão do ingresso com a prévia da vista, upgrade para camarote, visão em primeira pessoa e checkout
+- [x] **Etapa 3 · Ingresso e POV:** zoom na cadeira, cartão do ingresso com a prévia da vista, oferta de camarote, visão em primeira pessoa, pagamento e ingresso
 
 ## Rodando localmente
 
@@ -110,6 +120,10 @@ React 19, TypeScript e Vite. A cena usa Three.js com React Three Fiber e drei, o
 **Telões.** Cada tela (placar, escolha da pessoa, boas-vindas e o GitHub) é desenhada uma vez num canvas próprio, que vira a textura dos dois telões; trocar de tela só troca a textura. Ver `src/scene/stadium/Screens.tsx`.
 
 **Rede do gol.** Os fios da rede são calculados no shader, com antisserrilhado. Quando ficam mais finos que um pixel, viram a cobertura média deles, um véu branco: com uma textura recortada, a rede sumia de longe. Ver `src/scene/stadium/Pitch.tsx`.
+
+**Vista do lugar.** A câmera sai da pose em órbita e passa a ser uma câmera em primeira pessoa: posição, rumo e inclinação do olhar. Ela desce até os olhos de quem senta na cadeira (1,2 m acima do piso) enquanto gira para o meio do campo, e a abertura vertical se ajusta à tela, para a vista não ficar estreita no celular em pé. Arrastar soma um giro limitado ao olhar, como quem vira a cabeça. Logo que a câmera chega, a imagem da tela é copiada num canvas pequeno, no mesmo quadro em que foi desenhada (depois do pós-processamento), e vira a foto do cartão e do ingresso. Ver `src/scene/CameraRig.tsx` e `src/scene/PovSnapshot.tsx`.
+
+**Pagamento e ingresso.** O pagamento é uma demonstração: não há campos de cartão e nada sai do navegador. O ingresso junta a foto da vista, um mapa do estádio em SVG desenhado com as mesmas curvas do contorno (o bloco e a cadeira, ou o camarote, marcados) e um código 2D ilustrativo gerado a partir do número do pedido. Ver `src/ui/TicketPanel.tsx` e `src/ui/ticketParts.tsx`.
 
 **Câmera.** Cada etapa é uma pose em coordenadas de órbita (ângulo, elevação, distância e alvo), calculada para o bloco escolhido e para a proporção da tela. O GSAP interpola entre as poses girando pelo lado mais curto, e o plano de corte próximo acompanha a distância. No celular em pé, a imagem é deslocada para cima (`setViewOffset`), para o bloco ficar no espaço acima do painel sem mudar o ângulo da câmera. Ver `src/scene/cameraPoses.ts` e `src/scene/CameraRig.tsx`.
 
