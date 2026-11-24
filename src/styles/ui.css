@@ -226,6 +226,10 @@
   left: 22px;
   bottom: max(22px, env(safe-area-inset-bottom));
   width: min(360px, calc(100vw - 44px));
+  /* em telas baixas (celular deitado, janela pequena) o painel rola por dentro em vez de passar do topo */
+  max-height: calc(100% - 96px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 18px 20px 16px;
   border-radius: var(--radius-lg);
   opacity: 0;
@@ -1014,6 +1018,13 @@
 
 .field input:focus {
   border-color: var(--accent);
+}
+
+/* em telas de toque, 16px: com menos que isso o Safari do iPhone dá zoom na página ao tocar no campo */
+@media (pointer: coarse) {
+  .field input {
+    font-size: 16px;
+  }
 }
 
 .methods {
