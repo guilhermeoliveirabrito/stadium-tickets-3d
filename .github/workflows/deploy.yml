@@ -18,14 +18,19 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+        with:
+          # o token do workflow não fica gravado na cópia do repositório
+          # (assim nenhum pacote instalado consegue lê-lo)
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
 
-      - run: npm ci
+      # sem scripts de instalação: nenhum pacote roda código ao ser instalado
+      - run: npm ci --ignore-scripts
 
       - run: npm run build
 
