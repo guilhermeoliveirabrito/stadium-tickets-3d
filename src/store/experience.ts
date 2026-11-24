@@ -74,7 +74,10 @@ interface ExperienceState {
   selectSeat: (seat: number) => void
   /** da vista do bloco para o zoom na cadeira escolhida */
   openSeat: () => void
-  /** vista em primeira pessoa: da cadeira (no zoom ou no ingresso) ou do camarote (no camarote ou no ingresso) */
+  /**
+   * Vista em primeira pessoa: da cadeira (na escolha da cadeira, no zoom ou
+   * no ingresso) ou do camarote (no camarote ou no ingresso).
+   */
   openPov: (kind: 'seat' | 'box') => void
   setHoverBox: (box: number) => void
   /** abre a vista de um camarote (da visão geral, do setor, da cadeira ou de outro camarote) */
@@ -140,12 +143,12 @@ export const useExperience = create<ExperienceState>((set, get) => ({
   },
   openPov: (kind) => {
     const { phase, selectedSeat, selectedBox, order } = get()
-    const from = kind === 'seat' ? phase === 'seat' : phase === 'box'
+    const from = kind === 'seat' ? phase === 'seat' || phase === 'block' : phase === 'box'
     const fromTicket = phase === 'done' && order?.kind === kind
     if (!from && !fromTicket) return
     if (kind === 'seat' && selectedSeat < 0) return
     if (kind === 'box' && selectedBox < 0) return
-    set({ phase: 'pov', povFrom: phase, povKind: kind })
+    set({ phase: 'pov', povFrom: phase, povKind: kind, hoverSeat: -1 })
   },
   setHoverBox: (hoverBox) => {
     if (get().hoverBox !== hoverBox) set({ hoverBox })

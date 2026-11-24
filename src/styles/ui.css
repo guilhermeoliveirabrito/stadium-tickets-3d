@@ -646,7 +646,7 @@
   display: block;
   width: 100%;
   aspect-ratio: 16 / 9;
-  margin-top: 14px;
+  margin: 0;
   overflow: hidden;
   border-radius: var(--radius-md);
   background: #0b1020;
@@ -693,25 +693,81 @@
   transform: scale(1.04);
 }
 
+/* escurece o pé da foto, onde fica o texto */
+.pov-preview__shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(5, 8, 16, 0.05) 40%, rgba(5, 8, 16, 0.7) 100%);
+}
+
+.pov-preview__tag {
+  position: absolute;
+  top: 9px;
+  left: 9px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(10, 12, 18, 0.6);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+.pov-preview__play {
+  position: absolute;
+  top: 44%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  padding-left: 3px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--accent-deep);
+  transform: translate(-50%, -50%);
+  animation: play-pulse 2.2s ease-out infinite;
+  transition: transform 0.3s var(--ease-out);
+}
+
+.pov-preview:hover .pov-preview__play {
+  transform: translate(-50%, -50%) scale(1.08);
+}
+
+@keyframes play-pulse {
+  0% {
+    box-shadow:
+      0 8px 24px -6px rgba(0, 0, 0, 0.55),
+      0 0 0 0 rgba(255, 255, 255, 0.6);
+  }
+  70%,
+  100% {
+    box-shadow:
+      0 8px 24px -6px rgba(0, 0, 0, 0.55),
+      0 0 0 16px rgba(255, 255, 255, 0);
+  }
+}
+
 .pov-preview__label {
   position: absolute;
-  left: 10px;
+  left: 0;
+  right: 0;
   bottom: 10px;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 12px;
-  border-radius: 999px;
-  background: rgba(10, 12, 18, 0.72);
-  font-size: 12.5px;
-  font-weight: 650;
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  font-size: 14px;
+  font-weight: 720;
+  text-align: center;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
 }
 
 .pov-preview:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+.panel__kicker--spaced,
+.panel__head--spaced {
+  margin-top: 14px;
 }
 
 .upsell {
@@ -1499,8 +1555,50 @@
   .panel--seat .pov-preview,
   .panel--box .pov-preview {
     aspect-ratio: auto;
-    height: 64px;
-    margin-top: 10px;
+    height: 84px;
+  }
+
+  .pov-preview__tag {
+    display: none;
+  }
+
+  .pov-preview__shade {
+    background: linear-gradient(90deg, rgba(5, 8, 16, 0.75) 0%, rgba(5, 8, 16, 0.1) 75%);
+  }
+
+  .pov-preview__play {
+    top: 50%;
+    left: 36px;
+    width: 46px;
+    height: 46px;
+  }
+
+  .pov-preview__label {
+    top: 50%;
+    right: auto;
+    bottom: auto;
+    left: 70px;
+    font-size: 15px;
+    text-align: left;
+    transform: translateY(-50%);
+  }
+
+  .panel__kicker--spaced,
+  .panel__head--spaced {
+    margin-top: 12px;
+  }
+
+  /* na escolha da cadeira, três botões: o de voltar fica só com a seta */
+  .panel--block .btn--back {
+    padding: 0 14px;
+  }
+
+  .panel--block .btn--back .btn__label {
+    display: none;
+  }
+
+  .panel--block .actions .btn--primary {
+    flex: 1;
   }
 
   .panel--seat .price {

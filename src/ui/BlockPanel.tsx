@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { formatPrice, getBlockInfo, seatLabel } from '../lib/blocks'
 import { useExperience } from '../store/experience'
-import { Chevron } from './icons'
+import { Chevron, EyeIcon } from './icons'
 
 const canHover = window.matchMedia('(hover: hover)').matches
 
@@ -11,12 +11,14 @@ export function BlockPanel({ visible }: { visible: boolean }) {
   const selectedSeat = useExperience((s) => s.selectedSeat)
   const back = useExperience((s) => s.back)
   const openSeat = useExperience((s) => s.openSeat)
+  const openPov = useExperience((s) => s.openPov)
   const [shown, setShown] = useState(selectedBlock)
   if (selectedBlock >= 0 && selectedBlock !== shown) setShown(selectedBlock)
   if (shown < 0) return null
 
   const info = getBlockInfo(shown)
   const seat = selectedSeat >= 0 ? seatLabel(selectedSeat) : null
+  const tab = visible ? 0 : -1
 
   return (
     <section className="panel panel--block glass" data-visible={visible} aria-label="Escolha da cadeira" aria-hidden={!visible}>
@@ -59,15 +61,22 @@ export function BlockPanel({ visible }: { visible: boolean }) {
       </div>
 
       <div className="actions">
-        <button className="btn btn--ghost" type="button" onClick={back} tabIndex={visible ? 0 : -1}>
+        <button className="btn btn--ghost btn--back" type="button" onClick={back} tabIndex={tab}>
           <Chevron left />
-          Setor
+          <span className="btn__label">Setor</span>
         </button>
         {seat && !seat.taken && (
-          <button className="btn btn--primary" type="button" onClick={openSeat} tabIndex={visible ? 0 : -1}>
-            Continuar
-            <Chevron />
-          </button>
+          <>
+            {/* atalho: ver o jogo da cadeira sem passar pelo zoom */}
+            <button className="btn btn--ghost" type="button" onClick={() => openPov('seat')} tabIndex={tab}>
+              <EyeIcon />
+              Ver a vista
+            </button>
+            <button className="btn btn--primary" type="button" onClick={openSeat} tabIndex={tab}>
+              Continuar
+              <Chevron />
+            </button>
+          </>
         )}
       </div>
     </section>

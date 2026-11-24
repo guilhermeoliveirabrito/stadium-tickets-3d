@@ -36,3 +36,11 @@ export function CheckIcon() {
     </svg>
   )
 }
+
+export function PlayIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+      <path d="M8 5.5v11l9-5.5z" fill="currentColor" />
+    </svg>
+  )
+}

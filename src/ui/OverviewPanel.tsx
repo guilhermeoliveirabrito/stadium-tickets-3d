@@ -42,7 +42,9 @@ export function OverviewPanel({ visible }: { visible: boolean }) {
       </ul>
       <p className="hint">
         <span className="hint__icon" aria-hidden="true" />
-        {canHover ? 'Passe o mouse sobre um bloco para ver o preço e clique para ver de perto.' : 'Toque em um bloco para ver de perto.'}
+        {canHover
+          ? 'Passe o mouse sobre um bloco para ver o preço. Escolha a cadeira e veja o jogo do seu lugar antes de comprar.'
+          : 'Toque em um bloco, escolha a cadeira e veja o jogo do seu lugar antes de comprar.'}
       </p>
       <div className="vip">
         <div>

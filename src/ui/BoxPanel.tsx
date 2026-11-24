@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { formatPrice } from '../lib/blocks'
 import { getSkyboxes, SKYBOX_AMENITIES } from '../lib/skyboxes'
 import { povKey, useExperience } from '../store/experience'
-import { Chevron, EyeIcon } from './icons'
+import { Chevron } from './icons'
+import { PovPreview } from './PovPreview'
 
 /** Painel do camarote: preço do camarote inteiro, lugares, o que está incluso e a compra. */
 export function BoxPanel({ visible }: { visible: boolean }) {
@@ -28,7 +29,14 @@ export function BoxPanel({ visible }: { visible: boolean }) {
 
   return (
     <section className="panel panel--box glass" data-visible={visible} aria-label="Camarote" aria-hidden={!visible}>
-      <div className="panel__head">
+      <PovPreview
+        shot={shot}
+        tag="Vista real do camarote"
+        label="Ver o jogo do camarote"
+        onClick={() => openPov('box')}
+        tab={tab}
+      />
+      <div className="panel__head panel__head--spaced">
         <p className="panel__kicker">Camarote VIP · {box.standName}</p>
         <div className="browse">
           <button type="button" className="browse__btn" onClick={() => browse(-1)} tabIndex={tab} aria-label="Camarote anterior">
@@ -45,14 +53,6 @@ export function BoxPanel({ visible }: { visible: boolean }) {
         <li className="chip">{box.capacity} lugares</li>
         <li className="chip">Open bar</li>
       </ul>
-
-      <button className="pov-preview pov-preview--box" type="button" onClick={() => openPov('box')} tabIndex={tab} data-shot={!!shot}>
-        {shot ? <img src={shot} alt="Vista do campo a partir do camarote" /> : <span className="pov-preview__loading" />}
-        <span className="pov-preview__label">
-          <EyeIcon />
-          Ver o jogo do camarote
-        </span>
-      </button>
 
       <p className="price">
         <strong>{formatPrice(box.price)}</strong>

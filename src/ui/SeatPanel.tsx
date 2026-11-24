@@ -2,11 +2,12 @@ import { useState } from 'react'
 import { formatPrice, getBlockInfo, seatLabel } from '../lib/blocks'
 import { bestAvailableSkybox, getSkyboxes } from '../lib/skyboxes'
 import { povKey, useExperience } from '../store/experience'
-import { Chevron, EyeIcon } from './icons'
+import { Chevron } from './icons'
+import { PovPreview } from './PovPreview'
 
 /**
- * Zoom na cadeira escolhida: o lugar, o preço, a prévia da vista (a foto
- * aparece depois da primeira visita ao POV) e a oferta de camarote.
+ * Zoom na cadeira escolhida: a vista do lugar em destaque, o lugar, o preço e
+ * a oferta de camarote.
  */
 export function SeatPanel({ visible }: { visible: boolean }) {
   const selectedSeat = useExperience((s) => s.selectedSeat)
@@ -29,7 +30,14 @@ export function SeatPanel({ visible }: { visible: boolean }) {
 
   return (
     <section className="panel panel--seat glass" data-visible={visible} aria-label="Cadeira escolhida" aria-hidden={!visible}>
-      <p className="panel__kicker">
+      <PovPreview
+        shot={shot}
+        tag="Vista real da sua cadeira"
+        label="Ver o jogo daqui"
+        onClick={() => openPov('seat')}
+        tab={tab}
+      />
+      <p className="panel__kicker panel__kicker--spaced">
         Bloco {info.block.number} · {info.tierName}
       </p>
       <h2 className="panel__title">
@@ -40,15 +48,6 @@ export function SeatPanel({ visible }: { visible: boolean }) {
         <li className="chip">{info.view}</li>
         <li className="chip">{info.heightNote}</li>
       </ul>
-
-      <button className="pov-preview" type="button" onClick={() => openPov('seat')} tabIndex={tab} data-shot={!!shot}>
-        {/* a foto da vista chega logo que a câmera para na cadeira (ver PovSnapshot) */}
-        {shot ? <img src={shot} alt="Vista do campo a partir da sua cadeira" /> : <span className="pov-preview__loading" />}
-        <span className="pov-preview__label">
-          <EyeIcon />
-          Ver o jogo do meu lugar
-        </span>
-      </button>
 
       <p className="price">
         <strong>{formatPrice(info.price)}</strong>
