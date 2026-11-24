@@ -51,6 +51,19 @@
         -moz-osx-font-smoothing: grayscale;
       }
 
+      .noscript {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 12%;
+        z-index: 6;
+        margin: 0;
+        padding: 0 24px;
+        color: rgba(255, 255, 255, 0.8);
+        font: 15px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif;
+        text-align: center;
+      }
+
       .boot--exit {
         opacity: 0;
         transition: opacity 0.9s cubic-bezier(0.4, 0, 0.2, 1);
@@ -531,6 +544,9 @@
     <script>
       window.__bootStart = performance.now()
     </script>
+    <noscript>
+      <p class="noscript">O estádio em 3D precisa de JavaScript. Ative o JavaScript no navegador para escolher o seu lugar.</p>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

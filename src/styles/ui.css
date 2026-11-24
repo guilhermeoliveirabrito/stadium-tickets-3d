@@ -1664,6 +1664,47 @@
   }
 }
 
+/* sem 3D -------------------------------------------------------------------- */
+
+.fallback {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: radial-gradient(120% 85% at 50% 46%, #0c1020 0%, #05060b 52%, #000 100%);
+  color: #fff;
+}
+
+.fallback__card {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  max-width: 440px;
+  text-align: center;
+}
+
+.fallback__title {
+  margin: 8px 0 0;
+  font-size: 24px;
+  font-weight: 760;
+  letter-spacing: -0.02em;
+}
+
+.fallback__text {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+
+.fallback__btn {
+  flex: none;
+  margin-top: 10px;
+  background: var(--accent);
+}
+
 /* responsivo ---------------------------------------------------------------- */
 
 @media (max-width: 1080px) {

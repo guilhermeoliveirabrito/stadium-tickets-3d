@@ -43,22 +43,27 @@ export const QUALITY: Record<Tier, Quality> = {
   high: { pixels: 3.2e6, minDpr: 1, msaa: 4, smaa: false, ao: true, bloomLevels: 8, detailSeats: 7600 },
 }
 
-/** Nome da placa de vídeo, quando o navegador informa. */
-function gpuName() {
+/**
+ * O navegador abre WebGL 2 (o three.js precisa dele)? E o nome da placa de
+ * vídeo, quando o navegador informa.
+ */
+function probeGpu() {
   try {
     const canvas = document.createElement('canvas')
-    const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl')
-    if (!gl) return ''
+    const gl = canvas.getContext('webgl2')
+    if (!gl) return { webgl2: false, name: '' }
     const info = gl.getExtension('WEBGL_debug_renderer_info')
     const name = String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER) ?? '')
     gl.getExtension('WEBGL_lose_context')?.loseContext()
-    return name
+    return { webgl2: true, name }
   } catch {
-    return ''
+    return { webgl2: false, name: '' }
   }
 }
 
-export const GPU = gpuName()
+const probe = probeGpu()
+export const HAS_WEBGL2 = probe.webgl2
+export const GPU = probe.name
 
 /**
  * Placa integrada (Intel, AMD integrada, celulares, renderização por software).
@@ -70,12 +75,12 @@ const INTEGRATED =
     GPU,
   ) && !/\bArc\b/i.test(GPU)
 
-const forced = new URLSearchParams(window.location.search).get('q') as Tier | null
+const asked = new URLSearchParams(window.location.search).get('q')
+const forced = TIER_ORDER.find((tier) => tier === asked) ?? null
 const lowMemory = (nav.deviceMemory ?? 8) <= 4
 const weak = lowMemory || (nav.hardwareConcurrency ?? 8) <= 4
 
-export const START_TIER: Tier =
-  forced && TIER_ORDER.includes(forced) ? forced : IS_MOBILE || weak || INTEGRATED ? 'low' : 'medium'
+export const START_TIER: Tier = forced ?? (IS_MOBILE || weak || INTEGRATED ? 'low' : 'medium')
 export const MAX_TIER: Tier = forced ?? (IS_MOBILE ? 'medium' : 'high')
 export const TIER_LOCKED = !!forced
 
