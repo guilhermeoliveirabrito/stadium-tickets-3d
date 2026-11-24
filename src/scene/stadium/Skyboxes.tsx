@@ -21,6 +21,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { SEAT_COLORS, SKYBOX } from '../../config/stadium'
 import { frameAt, SEGMENTS, type Frame } from '../../lib/bowl'
 import { frameMatrix } from '../../lib/instancing'
+import { nonIndexed } from '../../lib/nonIndexed'
 import { once } from '../../lib/once'
 import { mulberry32 } from '../../lib/random'
 import { getSkyboxes, SKYBOX_INDEX_GLSL, SKYBOX_SEGMENTS } from '../../lib/skyboxes'
@@ -97,7 +98,7 @@ function createArmchairGeometry(rounded = true): BufferGeometry {
     new BoxGeometry(0.09, 0.2, 0.6).translate(-0.33, 0.44, 0.02),
     new BoxGeometry(0.09, 0.2, 0.6).translate(0.33, 0.44, 0.02),
   ]
-  const g = mergeGeometries(parts.map((p) => p.toNonIndexed()))!
+  const g = mergeGeometries(parts.map(nonIndexed))!
   g.deleteAttribute('uv')
   return g
 }
@@ -105,7 +106,7 @@ function createArmchairGeometry(rounded = true): BufferGeometry {
 /** Pessoa (sentada ou em pé): aSkin = 1 no rosto, aPants = 1 nas pernas. */
 function createPersonGeometry(seated: boolean): BufferGeometry {
   const part = (g: BufferGeometry, skin: number, pants: number) => {
-    const flat = g.index ? g.toNonIndexed() : g
+    const flat = nonIndexed(g)
     flat.deleteAttribute('uv')
     const n = flat.getAttribute('position').count
     flat.setAttribute('aSkin', new Float32BufferAttribute(new Array(n).fill(skin), 1))
@@ -409,7 +410,7 @@ function splitBySide(total: number, chairs: Matrix4[], seated: Placed[], standin
 /** Balcão do bar: corpo escuro, tampo claro e um filete de LED quente embaixo do tampo. */
 function createCounterGeometry(): BufferGeometry {
   const colored = (g: BufferGeometry, hex: string) => {
-    const flat = g.toNonIndexed()
+    const flat = nonIndexed(g)
     flat.deleteAttribute('uv')
     const c = new Color(hex)
     const n = flat.getAttribute('position').count

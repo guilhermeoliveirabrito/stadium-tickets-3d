@@ -17,6 +17,7 @@ import {
   Vector3,
 } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
+import { nonIndexed } from '../../lib/nonIndexed'
 import { once } from '../../lib/once'
 import { createGlowGeometry, createGlowMaterial } from '../glowMaterial'
 import { outside } from '../outside'
@@ -42,7 +43,7 @@ function createBody() {
     new BoxGeometry(0.1, 0.55, 1.6).translate(-0.7, -1.0, 0),
     new CylinderGeometry(0.12, 0.12, 0.5, 6).translate(0.2, 1.1, 0),
   ]
-  return mergeGeometries(parts.map((p) => p.toNonIndexed()))!
+  return mergeGeometries(parts.map(nonIndexed))!
 }
 
 /** Feixe do holofote: cone aberto, mais forte perto da lâmpada e nas linhas de visada centrais. */

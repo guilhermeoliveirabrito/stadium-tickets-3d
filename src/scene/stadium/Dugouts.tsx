@@ -12,6 +12,7 @@ import {
 } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { PITCH } from '../../config/stadium'
+import { nonIndexed } from '../../lib/nonIndexed'
 import { once } from '../../lib/once'
 import { withLocalFill } from './materials'
 import { createSeatGeometry } from './seatGeometry'
@@ -29,7 +30,7 @@ const BENCHES = [
 ]
 
 function colored(g: BufferGeometry, hex: string) {
-  const flat = g.index ? g.toNonIndexed() : g
+  const flat = nonIndexed(g)
   flat.deleteAttribute('uv')
   const c = new Color(hex)
   const n = flat.getAttribute('position').count
@@ -78,7 +79,7 @@ function createTechnicalArea() {
     line(x1, FRONT_Z, x1, touch)
     line(x0, touch, x1, touch)
   }
-  return mergeGeometries(parts.map((p) => p.toNonIndexed()))!
+  return mergeGeometries(parts.map(nonIndexed))!
 }
 
 const getDugoutParts = once(() => ({

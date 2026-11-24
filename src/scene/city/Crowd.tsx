@@ -17,6 +17,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { CROWD_DENSITY } from '../../config/quality'
 import { buildCrowd, PATH_SAMPLES } from '../../lib/city/crowd'
 import { getCity } from '../../lib/city/layout'
+import { nonIndexed } from '../../lib/nonIndexed'
 import { once } from '../../lib/once'
 import { pixelUniforms } from '../pixelScale'
 import { addCityLight } from './cityLight'
@@ -29,7 +30,7 @@ const BOTTOM = 3
 
 /** Caixa sem as faces que nunca aparecem (ex.: a base no chão), para pesar menos. */
 function boxWithout(width: number, height: number, depth: number, y: number, skip: number[]) {
-  const box = new BoxGeometry(width, height, depth).translate(0, y, 0).toNonIndexed()
+  const box = nonIndexed(new BoxGeometry(width, height, depth).translate(0, y, 0))
   const keep = [0, 1, 2, 3, 4, 5].filter((face) => !skip.includes(face))
   const out = new BufferGeometry()
   for (const name of ['position', 'normal']) {

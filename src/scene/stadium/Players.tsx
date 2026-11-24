@@ -14,6 +14,7 @@ import {
 } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { PITCH } from '../../config/stadium'
+import { nonIndexed } from '../../lib/nonIndexed'
 import { once } from '../../lib/once'
 import { mulberry32 } from '../../lib/random'
 import { pixelUniforms } from '../pixelScale'
@@ -21,7 +22,7 @@ import { withLocalFill } from './materials'
 
 /** Uma parte do jogador: aShorts = 1 no calção, aSkin = 1 no rosto; o resto leva a cor do uniforme. */
 function part(geometry: BufferGeometry, shorts: number, skin: number) {
-  const g = geometry.index ? geometry.toNonIndexed() : geometry
+  const g = nonIndexed(geometry)
   g.deleteAttribute('uv')
   const n = g.getAttribute('position').count
   g.setAttribute('aShorts', new BufferAttribute(new Float32Array(n).fill(shorts), 1))

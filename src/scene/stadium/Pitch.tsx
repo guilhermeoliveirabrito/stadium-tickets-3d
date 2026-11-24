@@ -14,6 +14,7 @@ import {
 } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { BOWL, PITCH } from '../../config/stadium'
+import { nonIndexed } from '../../lib/nonIndexed'
 import { once } from '../../lib/once'
 import { getNoiseTexture } from '../../lib/textures'
 import { FLASH_HEADER, flashTerm, flashUniforms } from '../lighting'
@@ -174,7 +175,7 @@ function createGoalFrame() {
   }
   parts.push(bar(v(topDepth, h, -w), v(topDepth, h, w), 0.022, 6))
   parts.push(bar(v(depth, 0.02, -w), v(depth, 0.02, w), 0.022, 6))
-  const g = mergeGeometries(parts.map((p) => p.toNonIndexed()))!
+  const g = mergeGeometries(parts.map(nonIndexed))!
   parts.forEach((p) => p.dispose())
   return g
 }
@@ -214,8 +215,8 @@ const getFlagParts = once(() => {
   const pole = new CylinderGeometry(0.025, 0.025, 1.5, 6).translate(0, 0.75, 0)
   const flag = new BoxGeometry(0.45, 0.32, 0.01).translate(0.23, 1.32, 0)
   return {
-    poles: mergeGeometries(corners.map(([x, z]) => place(pole, x, z).toNonIndexed()))!,
-    flags: mergeGeometries(corners.map(([x, z]) => place(flag, x, z).toNonIndexed()))!,
+    poles: mergeGeometries(corners.map(([x, z]) => nonIndexed(place(pole, x, z))))!,
+    flags: mergeGeometries(corners.map(([x, z]) => nonIndexed(place(flag, x, z))))!,
     poleMaterial: withLocalFill(new MeshLambertMaterial({ color: '#f4f4f2' }), 'flag-pole', 1.4),
     flagMaterial: withLocalFill(
       new MeshLambertMaterial({ color: '#ff6a1a', emissive: '#ff5a1f', emissiveIntensity: 0.25 }),
