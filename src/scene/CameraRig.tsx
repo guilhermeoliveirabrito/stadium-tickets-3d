@@ -161,16 +161,19 @@ export function CameraRig() {
       resetLook()
       const box = useExperience.getState().povKind === 'box'
       const to = box ? boxEye(getSkyboxes()[sel.box], aspect) : seatEye(sel.seat, aspect)
+      // vindo de longe (da carteira, na visão geral), o voo é mais longo e a
+      // virada para o campo acontece já perto do lugar
+      const k = Math.hypot(to.x - e.x, to.y - e.y, to.z - e.z) > 60 ? 1.7 : 1
       const tl = gsap.timeline({
         onComplete: () => {
           transition.current = null
           cameraState.povReady = true
         },
       })
-      tl.to(e, { x: to.x, y: to.y, z: to.z, near: 0.12, duration: 1.9, ease: 'power2.inOut' }, 0)
-      tl.to(e, { yaw: e.yaw + angleDelta(e.yaw, to.yaw), pitch: to.pitch, duration: 2.1, ease: 'power2.inOut' }, 0.35)
-      tl.to(e, { fov: to.fov, duration: 1.8, ease: 'power2.inOut' }, 0.6)
-      tl.to(pose, { shift: 0, inside: 1, duration: 1.4, ease: 'power2.inOut' }, 0)
+      tl.to(e, { x: to.x, y: to.y, z: to.z, near: 0.12, duration: 1.9 * k, ease: k > 1 ? 'power3.inOut' : 'power2.inOut' }, 0)
+      tl.to(e, { yaw: e.yaw + angleDelta(e.yaw, to.yaw), pitch: to.pitch, duration: 2.1, ease: 'power2.inOut' }, 0.35 * k * k)
+      tl.to(e, { fov: to.fov, duration: 1.8, ease: 'power2.inOut' }, 0.6 * k * k)
+      tl.to(pose, { shift: 0, inside: 1, duration: 1.4 * k, ease: 'power2.inOut' }, 0)
       transition.current = tl
       return
     }
@@ -286,7 +289,11 @@ export function CameraRig() {
       l.yaw = MathUtils.damp(l.yaw, l.targetYaw, 6, delta)
       l.pitch = MathUtils.damp(l.pitch, l.targetPitch, 6, delta)
       const yaw = e.yaw + l.yaw + Math.sin(t * 0.32) * 0.14 * l.sway
-      const pitch = MathUtils.clamp(e.pitch + l.pitch + Math.sin(t * 0.47) * 0.035 * l.sway, -1.2, 1.2)
+      // O limite vale só para o giro do arraste (ver o arraste, acima). O olhar
+      // em si vai até quase a vertical: no voo de ida e volta para a visão
+      // geral a câmera olha 78° para baixo, e travá-la em 69° a fazia chegar
+      // olhando para o lugar errado e pular no fim.
+      const pitch = MathUtils.clamp(e.pitch + l.pitch + Math.sin(t * 0.47) * 0.035 * l.sway, -1.53, 1.53)
       camera.position.set(e.x, e.y, e.z)
       const { direction } = scratch.current
       direction.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch))
