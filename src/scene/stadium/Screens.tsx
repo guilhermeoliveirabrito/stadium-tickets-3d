@@ -95,7 +95,8 @@ function daysLeft(now = Date.now()) {
 }
 
 function countdown(days: number) {
-  if (days < 0) return 'BOLA ROLANDO'
+  // depois da data do jogo, a data (o site continua de pé depois da final)
+  if (days < 0) return `${EVENT.date.toUpperCase()}  ·  ${EVENT.time}`
   if (days === 0) return 'É HOJE'
   return days === 1 ? 'FALTA 1 DIA' : `FALTAM ${days} DIAS`
 }
