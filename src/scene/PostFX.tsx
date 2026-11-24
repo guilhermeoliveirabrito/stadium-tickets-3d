@@ -1,11 +1,18 @@
 import { Bloom, BrightnessContrast, EffectComposer, HueSaturation, N8AO, SMAA, ToneMapping, Vignette } from '@react-three/postprocessing'
 import { ToneMappingMode } from 'postprocessing'
 import { QUALITY, type Tier } from '../config/quality'
+import { cameraState } from './cameraState'
 
 export function PostFX({ tier }: { tier: Tier }) {
   const q = QUALITY[tier]
   return (
-    <EffectComposer multisampling={q.msaa}>
+    // o compositor fica acessível para a foto da vista do lugar (ver PovSnapshot)
+    <EffectComposer
+      multisampling={q.msaa}
+      ref={(composer) => {
+        cameraState.composer = composer
+      }}
+    >
       {q.ao ? <N8AO halfRes aoRadius={3.2} distanceFalloff={0.8} intensity={2.6} aoSamples={8} denoiseSamples={4} /> : <></>}
       <Bloom mipmapBlur levels={q.bloomLevels} luminanceThreshold={0.82} luminanceSmoothing={0.3} intensity={1.15} radius={0.78} />
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />

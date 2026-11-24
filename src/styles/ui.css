@@ -655,26 +655,41 @@
   isolation: isolate;
 }
 
-.pov-preview img,
-.pov-preview__empty {
+.pov-preview img {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  animation: preview-in 0.6s var(--ease-out) both;
   transition: transform 0.6s var(--ease-out);
 }
 
-/* antes da primeira visita: um campo estilizado, visto da arquibancada */
-.pov-preview__empty {
-  background:
-    radial-gradient(120% 70% at 50% 120%, rgba(73, 172, 84, 0.95) 0 45%, transparent 46%),
-    radial-gradient(60% 40% at 50% 10%, rgba(140, 170, 255, 0.35), transparent 70%),
-    linear-gradient(180deg, #0a1022 0%, #1d2550 55%, #12193a 100%);
+@keyframes preview-in {
+  from {
+    opacity: 0;
+  }
 }
 
-.pov-preview:hover img,
-.pov-preview:hover .pov-preview__empty {
+/* enquanto a foto da vista não chega (a câmera ainda está indo até o lugar) */
+.pov-preview__loading {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0.03) 30%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.03) 70%);
+  background-size: 300% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+.pov-preview:hover img {
   transform: scale(1.04);
 }
 
@@ -1481,7 +1496,8 @@
     display: none;
   }
 
-  .panel--seat .pov-preview {
+  .panel--seat .pov-preview,
+  .panel--box .pov-preview {
     aspect-ratio: auto;
     height: 64px;
     margin-top: 10px;

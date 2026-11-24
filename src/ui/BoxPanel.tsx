@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { formatPrice } from '../lib/blocks'
 import { getSkyboxes, SKYBOX_AMENITIES } from '../lib/skyboxes'
-import { useExperience } from '../store/experience'
-import { Chevron } from './icons'
+import { povKey, useExperience } from '../store/experience'
+import { Chevron, EyeIcon } from './icons'
 
 /** Painel do camarote: preço do camarote inteiro, lugares, o que está incluso e a compra. */
 export function BoxPanel({ visible }: { visible: boolean }) {
@@ -11,6 +11,8 @@ export function BoxPanel({ visible }: { visible: boolean }) {
   const boxFrom = useExperience((s) => s.boxFrom)
   const selectBox = useExperience((s) => s.selectBox)
   const openCheckout = useExperience((s) => s.openCheckout)
+  const openPov = useExperience((s) => s.openPov)
+  const povShots = useExperience((s) => s.povShots)
   const back = useExperience((s) => s.back)
   // mantém o último camarote enquanto o painel some
   const [shown, setShown] = useState(selectedBox)
@@ -20,6 +22,7 @@ export function BoxPanel({ visible }: { visible: boolean }) {
   const boxes = getSkyboxes()
   const box = boxes[shown]
   const bought = order?.kind === 'box' && order.box === box.index
+  const shot = povShots[povKey('box', box.index)] ?? null
   const tab = visible ? 0 : -1
   const browse = (step: number) => selectBox((box.index + step + boxes.length) % boxes.length)
 
@@ -42,6 +45,14 @@ export function BoxPanel({ visible }: { visible: boolean }) {
         <li className="chip">{box.capacity} lugares</li>
         <li className="chip">Open bar</li>
       </ul>
+
+      <button className="pov-preview pov-preview--box" type="button" onClick={() => openPov('box')} tabIndex={tab} data-shot={!!shot}>
+        {shot ? <img src={shot} alt="Vista do campo a partir do camarote" /> : <span className="pov-preview__loading" />}
+        <span className="pov-preview__label">
+          <EyeIcon />
+          Ver o jogo do camarote
+        </span>
+      </button>
 
       <p className="price">
         <strong>{formatPrice(box.price)}</strong>

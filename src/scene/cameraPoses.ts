@@ -206,23 +206,53 @@ export interface Eye {
   fov: number
 }
 
-/** abertura horizontal da vista da cadeira (graus): a vertical se ajusta à tela */
-const POV_HFOV = 75
+/** abertura horizontal da vista do lugar (graus): a vertical se ajusta à tela */
+export const POV_HFOV = 75
+
+/** Abertura vertical (graus) que dá a abertura horizontal da vista do lugar numa tela com esta proporção. */
+export function povFov(aspect: number) {
+  // em pé, a abertura vertical cresce para a horizontal não ficar estreita demais
+  const vertical = 2 * Math.atan(Math.tan(MathUtils.degToRad(POV_HFOV / 2)) / aspect)
+  return MathUtils.clamp(MathUtils.radToDeg(vertical), 50, 95)
+}
+
+const emptyEye = (): Eye => ({ x: 0, y: 0, z: 0, yaw: 0, pitch: 0, fov: 0 })
+
+/** Olhar do ponto (x, y, z) para o campo, mirando a altura `aimY` no meio dele. */
+function lookAtPitch(out: Eye, aimY: number) {
+  out.yaw = Math.atan2(-out.x, -out.z)
+  out.pitch = Math.atan2(aimY - out.y, Math.hypot(out.x, out.z))
+}
 
 /**
  * Vista de quem senta na cadeira: olhos a 1,2 m do piso, um pouco para trás
  * do centro do assento, olhando para o meio do campo.
  */
-export function seatEye(seat: number, aspect: number, out: Eye = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, fov: 0 }): Eye {
+export function seatEye(seat: number, aspect: number, out: Eye = emptyEye()): Eye {
   const { seats } = getLayout()
   const yaw = seats.yaw[seat]
   out.x = seats.position[seat * 3] - Math.sin(yaw) * 0.08
   out.y = seats.position[seat * 3 + 1] + 1.22
   out.z = seats.position[seat * 3 + 2] - Math.cos(yaw) * 0.08
-  out.yaw = Math.atan2(-out.x, -out.z)
-  out.pitch = Math.atan2(0.5 - out.y, Math.hypot(out.x, out.z))
-  // em pé, a abertura vertical cresce para a horizontal não ficar estreita demais
-  const vertical = 2 * Math.atan(Math.tan(MathUtils.degToRad(POV_HFOV / 2)) / aspect)
-  out.fov = MathUtils.clamp(MathUtils.radToDeg(vertical), 50, 95)
+  lookAtPitch(out, 0.5)
+  out.fov = povFov(aspect)
+  return out
+}
+
+/**
+ * Vista do camarote: sentado na primeira fileira de poltronas, no meio do
+ * camarote, logo atrás do vidro. Mira um pouco acima do gramado, para pegar
+ * também as arquibancadas do outro lado.
+ */
+export function boxEye(box: SkyboxInfo, aspect: number, out: Eye = emptyEye()): Eye {
+  const [rowD, floor] = SKYBOX.rows[0]
+  const [nx, nz] = box.normal
+  // box.position fica no meio da profundidade; a primeira fileira está mais perto do vidro
+  const delta = rowD + 0.05 - (SKYBOX.front + SKYBOX.back) / 2
+  out.x = box.position[0] + nx * delta
+  out.y = floor + 1.2
+  out.z = box.position[2] + nz * delta
+  lookAtPitch(out, 4)
+  out.fov = povFov(aspect)
   return out
 }

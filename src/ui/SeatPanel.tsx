@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { formatPrice, getBlockInfo, seatLabel } from '../lib/blocks'
 import { bestAvailableSkybox, getSkyboxes } from '../lib/skyboxes'
-import { useExperience } from '../store/experience'
+import { povKey, useExperience } from '../store/experience'
 import { Chevron, EyeIcon } from './icons'
 
 /**
@@ -11,7 +11,7 @@ import { Chevron, EyeIcon } from './icons'
 export function SeatPanel({ visible }: { visible: boolean }) {
   const selectedSeat = useExperience((s) => s.selectedSeat)
   const selectedBlock = useExperience((s) => s.selectedBlock)
-  const povShot = useExperience((s) => s.povShot)
+  const povShots = useExperience((s) => s.povShots)
   const openPov = useExperience((s) => s.openPov)
   const openCheckout = useExperience((s) => s.openCheckout)
   const selectBox = useExperience((s) => s.selectBox)
@@ -23,7 +23,7 @@ export function SeatPanel({ visible }: { visible: boolean }) {
 
   const info = getBlockInfo(shown.block)
   const seat = seatLabel(shown.seat)
-  const shot = povShot?.seat === shown.seat ? povShot.url : null
+  const shot = povShots[povKey('seat', shown.seat)] ?? null
   const vip = getSkyboxes()[bestAvailableSkybox()]
   const tab = visible ? 0 : -1
 
@@ -41,11 +41,12 @@ export function SeatPanel({ visible }: { visible: boolean }) {
         <li className="chip">{info.heightNote}</li>
       </ul>
 
-      <button className="pov-preview" type="button" onClick={openPov} tabIndex={tab} data-shot={!!shot}>
-        {shot ? <img src={shot} alt="Vista do campo a partir da sua cadeira" /> : <span className="pov-preview__empty" />}
+      <button className="pov-preview" type="button" onClick={() => openPov('seat')} tabIndex={tab} data-shot={!!shot}>
+        {/* a foto da vista chega logo que a câmera para na cadeira (ver PovSnapshot) */}
+        {shot ? <img src={shot} alt="Vista do campo a partir da sua cadeira" /> : <span className="pov-preview__loading" />}
         <span className="pov-preview__label">
           <EyeIcon />
-          {shot ? 'Ver de novo do meu lugar' : 'Ver o jogo do meu lugar'}
+          Ver o jogo do meu lugar
         </span>
       </button>
 

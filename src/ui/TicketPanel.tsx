@@ -1,5 +1,5 @@
 import { EVENT } from '../config/event'
-import { useExperience } from '../store/experience'
+import { povKey, useExperience } from '../store/experience'
 import { CheckIcon, EyeIcon } from './icons'
 import { LogoMark } from './Logo'
 import { formatPrice } from '../lib/blocks'
@@ -9,13 +9,13 @@ import { StadiumMap, TicketCode } from './ticketParts'
 /** Compra concluída: o ingresso com a vista do lugar, o mapa, o código e os dados do pedido. */
 export function TicketPanel({ visible }: { visible: boolean }) {
   const order = useExperience((s) => s.order)
-  const povShot = useExperience((s) => s.povShot)
+  const povShots = useExperience((s) => s.povShots)
   const openPov = useExperience((s) => s.openPov)
   const startOver = useExperience((s) => s.startOver)
   if (!order) return null
 
   const describe = describeItem(order)
-  const shot = order.kind === 'seat' && povShot?.seat === order.seat ? povShot.url : null
+  const shot = povShots[povKey(order.kind, order.kind === 'seat' ? order.seat : order.box)] ?? null
   const tab = visible ? 0 : -1
 
   return (
@@ -87,12 +87,10 @@ export function TicketPanel({ visible }: { visible: boolean }) {
         </article>
 
         <div className="actions">
-          {order.kind === 'seat' && (
-            <button className="btn btn--ghost" type="button" onClick={openPov} tabIndex={tab}>
-              <EyeIcon />
-              Ver do meu lugar
-            </button>
-          )}
+          <button className="btn btn--ghost" type="button" onClick={() => openPov(order.kind)} tabIndex={tab}>
+            <EyeIcon />
+            {order.kind === 'seat' ? 'Ver do meu lugar' : 'Ver do camarote'}
+          </button>
           <button className="btn btn--primary" type="button" onClick={startOver} tabIndex={tab}>
             Comprar outro ingresso
           </button>

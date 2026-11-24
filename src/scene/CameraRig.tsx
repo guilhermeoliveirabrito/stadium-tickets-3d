@@ -8,6 +8,7 @@ import { introDisabled, type Phase, useExperience } from '../store/experience'
 import {
   aerialPose,
   blockPose,
+  boxEye,
   boxPose,
   type Eye,
   INTRO_START,
@@ -83,7 +84,7 @@ export function CameraRig() {
   const view = useRef({ shift: 0, width: 0, height: 0 })
   const settled = useRef(aerialPose(1.6))
   // primeira pessoa (vista da cadeira): olho, olhar em volta arrastando e o balanço parado
-  const eye = useRef<Eye & { active: boolean }>({ active: false, x: 0, y: 0, z: 0, yaw: 0, pitch: 0, fov: 50 })
+  const eye = useRef<Eye & { active: boolean; near: number }>({ active: false, x: 0, y: 0, z: 0, yaw: 0, pitch: 0, fov: 50, near: 0.12 })
   const look = useRef({ yaw: 0, pitch: 0, targetYaw: 0, targetPitch: 0, lastInput: -1e9, sway: 0 })
   const scratch = useRef({ position: new Vector3(), direction: new Vector3() })
 
@@ -129,6 +130,8 @@ export function CameraRig() {
     const camera = get().camera as PerspectiveCamera
     const pose = rig.current
     const e = eye.current
+    const l = look.current
+    const m = motion.current
     transition.current?.kill()
     cameraState.povReady = false
 
@@ -142,75 +145,72 @@ export function CameraRig() {
       e.yaw = Math.atan2(direction.x, direction.z)
       e.pitch = Math.asin(MathUtils.clamp(direction.y, -1, 1))
       e.fov = camera.fov
+      e.near = camera.near
     }
+    // A direção lida acima já inclui o quanto a pessoa virou o olhar
+    // arrastando (e o passeio do olhar parado): zera esses desvios para não
+    // somá-los de novo.
+    const resetLook = () => Object.assign(l, { yaw: 0, pitch: 0, targetYaw: 0, targetPitch: 0, lastInput: -1e9, sway: 0 })
 
     if (phase === 'pov') {
-      // Da frente da cadeira até os olhos de quem senta nela: a câmera desce
-      // até o assento enquanto vira para o campo, como quem se senta.
+      // Até os olhos de quem senta no lugar (cadeira ou camarote): a câmera
+      // desce até lá enquanto vira para o campo, como quem se senta.
       if (!e.active) fromCamera()
       e.active = true
       cameraState.pov = true
-      Object.assign(look.current, { yaw: 0, pitch: 0, targetYaw: 0, targetPitch: 0, lastInput: -1e9 })
-      const to = seatEye(sel.seat, aspect)
+      resetLook()
+      const box = useExperience.getState().povKind === 'box'
+      const to = box ? boxEye(getSkyboxes()[sel.box], aspect) : seatEye(sel.seat, aspect)
       const tl = gsap.timeline({
         onComplete: () => {
           transition.current = null
           cameraState.povReady = true
         },
       })
-      tl.to(e, { x: to.x, y: to.y, z: to.z, duration: 1.9, ease: 'power2.inOut' }, 0)
+      tl.to(e, { x: to.x, y: to.y, z: to.z, near: 0.12, duration: 1.9, ease: 'power2.inOut' }, 0)
       tl.to(e, { yaw: e.yaw + angleDelta(e.yaw, to.yaw), pitch: to.pitch, duration: 2.1, ease: 'power2.inOut' }, 0.35)
       tl.to(e, { fov: to.fov, duration: 1.8, ease: 'power2.inOut' }, 0.6)
+      tl.to(pose, { shift: 0, inside: 1, duration: 1.4, ease: 'power2.inOut' }, 0)
       transition.current = tl
       return
     }
 
     if (e.active) {
-      // Saindo da vista da cadeira. De volta para a frente da cadeira, o
-      // caminho é o inverso; para outra etapa, a câmera em primeira pessoa
-      // vira uma pose em órbita equivalente e segue dali.
+      // Saindo da vista do lugar: a câmera em primeira pessoa voa até onde a
+      // pose da etapa seguinte põe a câmera, já olhando para o alvo dela, e só
+      // então a pose em órbita assume (no mesmo ponto, sem salto).
       fromCamera()
+      resetLook()
       cameraState.pov = false
-      if (phase === 'seat') {
-        const target = seatPose(sel.seat, aspect)
-        const h = target.dist * Math.cos(target.el)
-        const position = scratch.current.position.set(
-          target.tx + h * Math.sin(target.az),
-          target.ty + target.dist * Math.sin(target.el),
-          target.tz + h * Math.cos(target.az),
-        )
-        const dx = target.tx - position.x
-        const dy = target.ty - position.y
-        const dz = target.tz - position.z
-        const yaw = Math.atan2(dx, dz)
-        const pitch = Math.atan2(dy, Math.hypot(dx, dz))
-        const tl = gsap.timeline({
-          onComplete: () => {
-            e.active = false
-            Object.assign(pose, target)
-            transition.current = null
-          },
-        })
-        tl.to(e, { yaw: e.yaw + angleDelta(e.yaw, yaw), pitch, duration: 1.8, ease: 'power2.inOut' }, 0)
-        tl.to(e, { x: position.x, y: position.y, z: position.z, duration: 1.7, ease: 'power2.inOut' }, 0.3)
-        tl.to(e, { fov: target.fov, duration: 1.6, ease: 'power2.inOut' }, 0.2)
-        transition.current = tl
-        return
-      }
-      // pose em órbita que reproduz a câmera atual, com o alvo 30 m à frente
-      const d = 30
-      const { direction } = scratch.current
-      direction.set(Math.sin(e.yaw) * Math.cos(e.pitch), Math.sin(e.pitch), Math.cos(e.yaw) * Math.cos(e.pitch))
-      pose.tx = e.x + direction.x * d
-      pose.ty = e.y + direction.y * d
-      pose.tz = e.z + direction.z * d
-      pose.dist = d
-      pose.az = Math.atan2(-direction.x, -direction.z)
-      pose.el = Math.asin(-direction.y)
-      pose.fov = e.fov
-      pose.shift = 0
-      pose.inside = 1
-      e.active = false
+      const target = poseFor(phase, sel, aspect)
+      const h = target.dist * Math.cos(target.el)
+      const px = target.tx + h * Math.sin(target.az)
+      const py = target.ty + target.dist * Math.sin(target.el)
+      const pz = target.tz + h * Math.cos(target.az)
+      const dx = target.tx - px
+      const dy = target.ty - py
+      const dz = target.tz - pz
+      const yaw = Math.atan2(dx, dz)
+      const pitch = Math.atan2(dy, Math.hypot(dx, dz))
+      const far = Math.hypot(px - e.x, py - e.y, pz - e.z) > 60
+      const duration = far ? 3.2 : 1.9
+      const tl = gsap.timeline({
+        onComplete: () => {
+          e.active = false
+          Object.assign(pose, target)
+          // o parallax do mouse volta aos poucos, a partir de zero
+          m.parallax = 0
+          m.parallaxX = 0
+          m.parallaxY = 0
+          transition.current = null
+        },
+      })
+      tl.to(e, { yaw: e.yaw + angleDelta(e.yaw, yaw), pitch, duration, ease: 'power2.inOut' }, 0)
+      tl.to(e, { x: px, y: py, z: pz, duration: duration - 0.2, ease: far ? 'power3.inOut' : 'power2.inOut' }, 0.2)
+      tl.to(e, { fov: target.fov, near: MathUtils.clamp(target.dist * 0.05, 0.12, 4), duration: duration - 0.3, ease: 'power2.inOut' }, 0.3)
+      tl.to(pose, { shift: target.shift, inside: target.inside, duration: duration - 0.3, ease: 'power2.inOut' }, 0.3)
+      transition.current = tl
+      return
     }
 
     const target = poseFor(phase, sel, aspect)
@@ -274,6 +274,7 @@ export function CameraRig() {
     const camera = state.camera as PerspectiveCamera
     const aerial = phase === 'aerial'
     const e = eye.current
+    cameraState.moving = !!transition.current
 
     if (e.active) {
       // primeira pessoa: olho na cadeira, mais o olhar em volta
@@ -291,13 +292,11 @@ export function CameraRig() {
       direction.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch))
       camera.up.copy(UP)
       camera.lookAt(e.x + direction.x, e.y + direction.y, e.z + direction.z)
-      if (Math.abs(camera.fov - e.fov) > 1e-3 || Math.abs(camera.near - 0.12) > 1e-3) {
+      if (Math.abs(camera.fov - e.fov) > 1e-3 || Math.abs(camera.near - e.near) > 1e-3) {
         camera.fov = e.fov
-        camera.near = 0.12
+        camera.near = e.near
         camera.updateProjectionMatrix()
       }
-      pose.inside = 1
-      pose.shift = 0
     } else {
       if (navigable(phase) && !transition.current) {
         // parada numa etapa: acompanha redimensionamentos da janela
