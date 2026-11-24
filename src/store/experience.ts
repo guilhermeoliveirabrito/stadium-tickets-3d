@@ -42,16 +42,24 @@ export interface Order extends OrderItem {
 /** taxa de serviço sobre o valor do ingresso */
 export const SERVICE_FEE = 0.1
 
-/** quantos ingressos ficam guardados no navegador (as fotos ocupam espaço) */
-const MAX_SAVED = 12
+/**
+ * Ingressos guardados no navegador. Todos ficam guardados (até um limite que
+ * não se alcança usando o site), mas só os mais recentes levam a foto da
+ * vista, que é o que ocupa espaço.
+ */
+const MAX_SAVED = 100
+const MAX_SHOTS = 12
 const STORAGE_KEY = 'tribuna.ingressos.v1'
+const PAYMENT_METHODS: PaymentMethod[] = ['pix', 'card', 'wallet']
 
-/** Volta da vista do lugar aberta pela carteira: a etapa e a escolha de antes. */
+/** Volta da vista do lugar aberta pela carteira: a etapa e a escolha de antes (inclusive outra vista do lugar). */
 interface PovReturn {
   phase: Phase
   selectedBlock: number
   selectedSeat: number
   selectedBox: number
+  povKind: 'seat' | 'box'
+  povFrom: Phase
   orderId: string
 }
 
@@ -134,29 +142,66 @@ function orderId() {
   return `TRB-${id}`
 }
 
+const isCount = (n: unknown) => typeof n === 'number' && Number.isFinite(n) && n >= 0
+
+/**
+ * Confere um ingresso lido do navegador. O que vem de lá pode estar
+ * incompleto ou alterado (de outra versão do site, ou mexido à mão), e um
+ * ingresso inválido derrubaria a tela: só passa o que faz sentido neste
+ * estádio, e o bloco é recalculado a partir da cadeira.
+ */
+function readOrder(value: unknown): Order | null {
+  if (!value || typeof value !== 'object') return null
+  const o = value as Record<string, unknown>
+  const { seats } = getLayout()
+  const boxes = getSkyboxes()
+  const isIndex = (n: unknown, count: number): n is number => Number.isInteger(n) && (n as number) >= 0 && (n as number) < count
+  if (typeof o.id !== 'string' || o.id.length > 24) return null
+  if (!isCount(o.price) || !isCount(o.fee) || !isCount(o.total)) return null
+  // data dentro do que o Date aceita (senão a data no ingresso quebra a tela)
+  if (!isCount(o.createdAt) || (o.createdAt as number) > 8.64e15) return null
+  if (!PAYMENT_METHODS.includes(o.method as PaymentMethod)) return null
+  const base = {
+    id: o.id,
+    price: o.price as number,
+    fee: o.fee as number,
+    total: o.total as number,
+    name: typeof o.name === 'string' ? o.name.slice(0, 40) : '',
+    method: o.method as PaymentMethod,
+    createdAt: o.createdAt as number,
+    shot: typeof o.shot === 'string' && o.shot.startsWith('data:image/') ? o.shot : undefined,
+  }
+  if (o.kind === 'seat' && isIndex(o.seat, seats.count)) return { ...base, kind: 'seat', seat: o.seat, block: seats.block[o.seat], box: -1 }
+  if (o.kind === 'box' && isIndex(o.box, boxes.length)) return { ...base, kind: 'box', seat: -1, block: -1, box: o.box }
+  return null
+}
+
 /** Ingressos guardados no navegador (some sem erro se o armazenamento não estiver disponível). */
 function loadOrders(): Order[] {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    const parsed = raw ? (JSON.parse(raw) as Order[]) : []
-    const { seats } = getLayout()
-    const boxes = getSkyboxes()
-    // só ingressos que ainda fazem sentido neste estádio
-    return Array.isArray(parsed)
-      ? parsed.filter((o) => (o.kind === 'seat' ? o.seat >= 0 && o.seat < seats.count : o.box >= 0 && o.box < boxes.length))
-      : []
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? '[]')
+    if (!Array.isArray(parsed)) return []
+    const orders: Order[] = []
+    for (const value of parsed) {
+      const order = readOrder(value)
+      // um ingresso por lugar
+      if (order && !orders.some((o) => o.id === order.id || ownedOrder([o], order.kind, orderPlace(order)))) orders.push(order)
+    }
+    return orders.slice(0, MAX_SAVED)
   } catch {
     return []
   }
 }
 
 function saveOrders(orders: Order[]) {
+  // só os mais recentes levam a foto
+  const light = (keep: number) => orders.map((o, i) => (i < keep || !o.shot ? o : { ...o, shot: undefined }))
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(orders))
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(light(MAX_SHOTS)))
   } catch {
-    // sem espaço (as fotos ocupam espaço): guarda sem as fotos
+    // sem espaço: guarda sem as fotos
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(orders.map(({ shot: _shot, ...rest }) => rest)))
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(light(0)))
     } catch {
       // armazenamento indisponível (aba anônima, por exemplo): fica só nesta visita
     }
@@ -304,13 +349,14 @@ export const useExperience = create<ExperienceState>((set, get) => ({
     const order = orders.find((o) => o.id === orderId)
     if (!order) return
     // guarda onde a pessoa estava (se já veio de uma vista aberta pela carteira, mantém a volta original)
-    const back: PovReturn = { ...(povReturn ?? { phase, selectedBlock, selectedSeat, selectedBox }), orderId }
+    const { povKind, povFrom } = get()
+    const back: PovReturn = { ...(povReturn ?? { phase, selectedBlock, selectedSeat, selectedBox, povKind, povFrom }), orderId }
     const { seats } = getLayout()
     set({
       walletOpen: false,
       phase: 'pov',
       povKind: order.kind,
-      povFrom: phase,
+      povFrom: back.phase === 'pov' ? back.povFrom : back.phase,
       povReturn: back,
       selectedSeat: order.kind === 'seat' ? order.seat : -1,
       selectedBlock: order.kind === 'seat' ? seats.block[order.seat] : -1,
@@ -334,6 +380,8 @@ export const useExperience = create<ExperienceState>((set, get) => ({
         selectedBlock: povReturn.selectedBlock,
         selectedSeat: povReturn.selectedSeat,
         selectedBox: povReturn.selectedBox,
+        povKind: povReturn.povKind,
+        povFrom: povReturn.povFrom,
         povReturn: null,
         walletOpen: true,
         walletOrder: povReturn.orderId,
@@ -354,6 +402,11 @@ export function seatPlace(seat: number) {
   const { seats, blocks } = getLayout()
   return `Bloco ${blocks[seats.block[seat]].number} · Fileira ${seats.row[seat]} · Cadeira ${seats.number[seat]}`
 }
+
+// Ingressos comprados em outra aba aparecem nesta também (e não são vendidos de novo).
+window.addEventListener('storage', (event) => {
+  if (event.key === STORAGE_KEY || event.key === null) useExperience.setState({ orders: loadOrders() })
+})
 
 /** ?intro=0 pula a abertura (útil durante o desenvolvimento). */
 export const introDisabled = new URLSearchParams(window.location.search).get('intro') === '0'
