@@ -180,6 +180,8 @@ function buildGeometry(bursts: Burst[]) {
 /** Fogos de artifício sobre o estádio durante a abertura. */
 export function Fireworks() {
   const phase = useExperience((s) => s.phase)
+  const orderId = useExperience((s) => s.order?.id ?? '')
+  const celebrated = useRef('')
   const { bursts, geometry, material } = useMemo(() => {
     const bursts = planBursts()
     return {
@@ -202,6 +204,11 @@ export function Fireworks() {
 
   useFrame((state, delta) => {
     if (clock.current < 0 && phase === 'intro') clock.current = 0
+    // compra confirmada: os fogos estouram de novo, uma vez por compra
+    if (phase === 'done' && celebrated.current !== orderId) {
+      celebrated.current = orderId
+      clock.current = 0
+    }
     if (clock.current < 0) return
     clock.current += Math.min(delta, 0.1)
     const t = clock.current

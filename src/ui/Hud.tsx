@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useExperience } from '../store/experience'
 import { BlockPanel } from './BlockPanel'
 import { BoxPanel } from './BoxPanel'
+import { CheckoutPanel } from './CheckoutPanel'
 import { useBootSequence } from './bootSequence'
 import { Header } from './Header'
 import { IntroOverlay } from './IntroOverlay'
@@ -9,6 +10,7 @@ import { OverviewPanel } from './OverviewPanel'
 import { PovPanel } from './PovPanel'
 import { SeatPanel } from './SeatPanel'
 import { SectorPanel } from './SectorPanel'
+import { TicketPanel } from './TicketPanel'
 
 /** Esc volta uma etapa (bloco → setor → visão geral). */
 function useBackKey() {
@@ -44,6 +46,8 @@ export function Hud() {
       <SeatPanel visible={phase === 'seat'} />
       <PovPanel visible={phase === 'pov'} />
       <BoxPanel visible={phase === 'box'} />
+      <CheckoutPanel visible={phase === 'checkout'} />
+      <TicketPanel visible={phase === 'done'} />
     </div>
   )
 }
