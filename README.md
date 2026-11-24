@@ -4,11 +4,13 @@ Compra de ingressos em 3D para um estádio fictício, numa noite de final. A exp
 
 **Ver ao vivo:** https://guilhermeoliveirabrito.github.io/stadium-tickets-3d/
 
+Funciona no computador e no celular, em navegadores com WebGL 2 (Chrome, Edge, Firefox e Safari atualizados). Sem WebGL 2, o site mostra um aviso explicando o que fazer.
+
 ![Abertura: o estádio em neon com o estacionamento e a cidade em volta](docs/abertura.jpg)
 
 > Projeto de estudo. O estádio (Arena Aurora), os clubes (Aurora FC e Atlântico EC), a partida e a marca de ingressos (tribuna) são inventados.
 
-## O que já tem
+## O que tem
 
 - Estádio gerado em código: três anéis de arquibancada, 130 blocos, cerca de 60 mil cadeiras, 24 camarotes, cobertura com treliças e fachada com brises
 - Noite de jogo: refletores na cobertura, fachada e cobertura com faixas de LED animadas, céu estrelado com lua
@@ -100,11 +102,11 @@ React 19, TypeScript e Vite. A cena usa Three.js com React Three Fiber e drei, o
 
 **Contorno paralelo.** A primeira fileira é um retângulo de cantos arredondados, e cada fileira seguinte é a curva paralela a uma distância `d`. Com isso as retas e os cantos ficam sempre alinhados, e qualquer parte do estádio (degraus, camarotes, cobertura, fachada) vira um perfil 2D `(d, y)` varrido em volta do campo. Ver `src/lib/bowl.ts` e `src/lib/sweep.ts`.
 
-**Blocos e cadeiras.** Cada anel é dividido em blocos separados por escadas. As cadeiras são posicionadas fileira por fileira dentro de cada bloco e desenhadas com um único `InstancedMesh`. A numeração segue o sentido horário, e o bloco central da arquibancada norte é sempre o x32 (132, 232, 332). Ver `src/lib/layout.ts`.
+**Blocos e cadeiras.** Cada anel é dividido em blocos separados por escadas. As cadeiras são posicionadas fileira por fileira dentro de cada bloco e desenhadas com instâncias (ver "Cadeiras de perto"). A numeração segue o sentido horário, e o bloco central da arquibancada norte é sempre o x32 (132, 232, 332). Ver `src/lib/layout.ts`.
 
 **Gramado.** As linhas do campo são funções de distância calculadas no fragment shader, com antisserrilhado por `fwidth`. Assim ficam nítidas tanto na vista aérea quanto rente ao chão. Ver `src/scene/stadium/pitchShader.ts`.
 
-**Luz de jogo noturno.** Oito refletores mirando o campo, mais uma luz rebatida aplicada só aos materiais do estádio, para as arquibancadas não ficarem escuras sem clarear a cidade. As faixas de LED usam um único material emissivo animado pelo tempo. Ver `src/scene/stadium/Floodlights.tsx` e `src/scene/stadium/neon.ts`.
+**Luz de jogo noturno.** Os refletores não são luzes de verdade: a luz deles, vinda de cima do meio do campo, e a luz rebatida pelo gramado entram como um termo curto só nos materiais do estádio, para as arquibancadas não ficarem escuras sem clarear a cidade. As faixas de LED usam um único material emissivo animado pelo tempo. Ver `src/scene/lighting.ts` e `src/scene/stadium/neon.ts`.
 
 **Cidade.** O entorno inteiro é gerado a partir de regras (`src/lib/city/layout.ts`): avenida, via de acesso, grade de ruas que só começa depois da faixa verde, prédios de frente para as ruas, postes e árvores. As janelas acesas saem de um shader nos próprios prédios, sem textura. A luz dos postes é desenhada uma vez num mapa de luz do chão, e carros, árvores e fachadas leem esse mesmo mapa para ficarem iluminados quando estão perto de um poste.
 
@@ -128,7 +130,7 @@ React 19, TypeScript e Vite. A cena usa Three.js com React Three Fiber e drei, o
 
 **Pagamento e ingresso.** O pagamento é uma demonstração: não há campos de cartão e nada sai do navegador. O ingresso junta a foto da vista, um mapa do estádio em SVG desenhado com as mesmas curvas do contorno (o bloco e a cadeira, ou o camarote, marcados) e um código 2D ilustrativo gerado a partir do número do pedido. Ver `src/ui/TicketCard.tsx` e `src/ui/ticketParts.tsx`.
 
-**Meus ingressos.** Os ingressos ficam no `localStorage` (os 12 mais recentes, cada um com a foto da vista; se o espaço acabar, ficam sem as fotos). Uma cadeira comprada é pintada de âmbar nas três formas em que as cadeiras aparecem: a cor da cadeira leve, a do modelo detalhado e o ponto do mapa de cadeiras que o degrau usa de longe. Abrir a vista do lugar pela carteira guarda a etapa de antes, e o "voltar" leva de novo ao ingresso. Ver `src/store/experience.ts`, `src/ui/WalletPanel.tsx` e `src/scene/stadium/Seats.tsx`.
+**Meus ingressos.** Os ingressos ficam no `localStorage`, e os 12 mais recentes guardam também a foto da vista (se o espaço acabar, ficam sem as fotos). O que vem de lá é conferido antes de chegar à tela (um ingresso incompleto ou alterado é descartado), e uma compra feita em outra aba aparece nesta. Uma cadeira comprada é pintada de âmbar nas três formas em que as cadeiras aparecem: a cor da cadeira leve, a do modelo detalhado e o ponto do mapa de cadeiras que o degrau usa de longe. Abrir a vista do lugar pela carteira guarda a etapa de antes, e o "voltar" leva de novo ao ingresso. Ver `src/store/experience.ts`, `src/ui/WalletPanel.tsx` e `src/scene/stadium/Seats.tsx`.
 
 **Câmera.** Cada etapa é uma pose em coordenadas de órbita (ângulo, elevação, distância e alvo), calculada para o bloco escolhido e para a proporção da tela. O GSAP interpola entre as poses girando pelo lado mais curto, e o plano de corte próximo acompanha a distância. No celular em pé, a imagem é deslocada para cima (`setViewOffset`), para o bloco ficar no espaço acima do painel sem mudar o ângulo da câmera. Ver `src/scene/cameraPoses.ts` e `src/scene/CameraRig.tsx`.
 
@@ -158,4 +160,4 @@ src/
 
 ## Licença
 
-MIT
+MIT (ver `LICENSE`). A fonte Inter, incluída em `public/fonts`, é distribuída sob a SIL Open Font License (`public/fonts/Inter-OFL.txt`).
