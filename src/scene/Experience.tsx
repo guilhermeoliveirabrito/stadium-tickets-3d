@@ -16,6 +16,7 @@ import { BlockLabel, BoxLabel, SeatTooltip } from './picking/Labels'
 import { SeatPicker } from './picking/SeatPicker'
 import { PostFX } from './PostFX'
 import { PixelScale } from './pixelScale'
+import { PovSnapshot } from './PovSnapshot'
 import { Precompile } from './Precompile'
 import { ReadySignal } from './ReadySignal'
 import { SelectionSync } from './SelectionSync'
@@ -91,6 +92,7 @@ export function Experience() {
       <SeatTooltip />
       <OutsideFogSetup />
       <PostFX tier={tier} />
+      <PovSnapshot />
       <ReadySignal skipIntro={devCamera} />
       {!compiled && <Precompile onDone={onCompiled} waitForTitle={!devCamera} />}
     </Canvas>

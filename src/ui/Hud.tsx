@@ -6,6 +6,8 @@ import { useBootSequence } from './bootSequence'
 import { Header } from './Header'
 import { IntroOverlay } from './IntroOverlay'
 import { OverviewPanel } from './OverviewPanel'
+import { PovPanel } from './PovPanel'
+import { SeatPanel } from './SeatPanel'
 import { SectorPanel } from './SectorPanel'
 
 /** Esc volta uma etapa (bloco → setor → visão geral). */
@@ -27,15 +29,20 @@ export function Hud() {
   useEffect(() => {
     document.body.style.cursor = ''
   }, [phase])
-  const choosing = phase === 'aerial' || phase === 'sector' || phase === 'block' || phase === 'box'
+  const choosing = phase !== 'loading' && phase !== 'intro'
+  // etapas do cabeçalho: setor, cadeira (ou camarote), pagamento; no ingresso, todas feitas
+  const step =
+    phase === 'checkout' ? 2 : phase === 'done' ? 3 : phase === 'block' || phase === 'seat' || phase === 'pov' || phase === 'box' ? 1 : 0
 
   return (
     <div className="hud" data-phase={phase}>
       <IntroOverlay />
-      <Header visible={choosing} step={phase === 'block' || phase === 'box' ? 1 : 0} />
+      <Header visible={choosing} step={step} />
       <OverviewPanel visible={phase === 'aerial'} />
       <SectorPanel visible={phase === 'sector'} />
       <BlockPanel visible={phase === 'block'} />
+      <SeatPanel visible={phase === 'seat'} />
+      <PovPanel visible={phase === 'pov'} />
       <BoxPanel visible={phase === 'box'} />
     </div>
   )

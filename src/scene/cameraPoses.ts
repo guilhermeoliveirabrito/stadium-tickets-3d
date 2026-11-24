@@ -1,6 +1,7 @@
 import { MathUtils } from 'three'
 import { BOWL, ROOF, SKYBOX } from '../config/stadium'
 import type { BlockInfo } from '../lib/blocks'
+import { getLayout } from '../lib/layout'
 import type { SkyboxInfo } from '../lib/skyboxes'
 
 export interface Pose {
@@ -174,4 +175,54 @@ export function boxPose(box: SkyboxInfo, aspect: number, out: Pose = emptyPose()
   out.shift = narrow ? NARROW_SHIFT : 0
   out.inside = 1
   return keepInside(out)
+}
+
+/**
+ * Zoom na cadeira escolhida: de frente para ela, um pouco acima, com as
+ * vizinhas em volta. A frente da cadeira (virada para o campo) é o rumo dela.
+ */
+export function seatPose(seat: number, aspect: number, out: Pose = emptyPose()): Pose {
+  const { seats } = getLayout()
+  const narrow = isNarrow(aspect)
+  out.az = seats.yaw[seat]
+  out.el = 0.42
+  out.dist = narrow ? 5.4 : 3.8
+  out.tx = seats.position[seat * 3]
+  out.ty = seats.position[seat * 3 + 1] + 0.62
+  out.tz = seats.position[seat * 3 + 2]
+  out.fov = 40
+  out.shift = narrow ? NARROW_SHIFT : 0
+  out.inside = 1
+  return out
+}
+
+/** Câmera em primeira pessoa: posição, rumo (como o das cadeiras), inclinação e abertura vertical. */
+export interface Eye {
+  x: number
+  y: number
+  z: number
+  yaw: number
+  pitch: number
+  fov: number
+}
+
+/** abertura horizontal da vista da cadeira (graus): a vertical se ajusta à tela */
+const POV_HFOV = 75
+
+/**
+ * Vista de quem senta na cadeira: olhos a 1,2 m do piso, um pouco para trás
+ * do centro do assento, olhando para o meio do campo.
+ */
+export function seatEye(seat: number, aspect: number, out: Eye = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, fov: 0 }): Eye {
+  const { seats } = getLayout()
+  const yaw = seats.yaw[seat]
+  out.x = seats.position[seat * 3] - Math.sin(yaw) * 0.08
+  out.y = seats.position[seat * 3 + 1] + 1.22
+  out.z = seats.position[seat * 3 + 2] - Math.cos(yaw) * 0.08
+  out.yaw = Math.atan2(-out.x, -out.z)
+  out.pitch = Math.atan2(0.5 - out.y, Math.hypot(out.x, out.z))
+  // em pé, a abertura vertical cresce para a horizontal não ficar estreita demais
+  const vertical = 2 * Math.atan(Math.tan(MathUtils.degToRad(POV_HFOV / 2)) / aspect)
+  out.fov = MathUtils.clamp(MathUtils.radToDeg(vertical), 50, 95)
+  return out
 }

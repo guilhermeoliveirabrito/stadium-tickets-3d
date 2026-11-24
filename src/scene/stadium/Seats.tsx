@@ -292,7 +292,10 @@ export function Seats({ detailBudget }: { detailBudget: number }) {
     const neighbors = getBlockNeighbors()
     const { phase, selectedBlock: selected } = useExperience.getState()
     // só com um setor escolhido: o bloco dele e os vizinhos do mesmo anel
-    const choosing = (phase === 'sector' || phase === 'block') && selected >= 0
+    // (também de perto da cadeira, sentado nela, no pagamento e no ingresso)
+    const choosing =
+      (phase === 'sector' || phase === 'block' || phase === 'seat' || phase === 'pov' || phase === 'checkout' || phase === 'done') &&
+      selected >= 0
     let candidates = 0
     if (group.visible) {
       l.frustum.setFromProjectionMatrix(l.matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse))

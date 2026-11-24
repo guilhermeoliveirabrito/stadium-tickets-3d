@@ -639,6 +639,160 @@
   color: var(--seat-red);
 }
 
+/* cadeira escolhida ----------------------------------------------------------- */
+
+.pov-preview {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin-top: 14px;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: #0b1020;
+  color: #fff;
+  text-align: left;
+  isolation: isolate;
+}
+
+.pov-preview img,
+.pov-preview__empty {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s var(--ease-out);
+}
+
+/* antes da primeira visita: um campo estilizado, visto da arquibancada */
+.pov-preview__empty {
+  background:
+    radial-gradient(120% 70% at 50% 120%, rgba(73, 172, 84, 0.95) 0 45%, transparent 46%),
+    radial-gradient(60% 40% at 50% 10%, rgba(140, 170, 255, 0.35), transparent 70%),
+    linear-gradient(180deg, #0a1022 0%, #1d2550 55%, #12193a 100%);
+}
+
+.pov-preview:hover img,
+.pov-preview:hover .pov-preview__empty {
+  transform: scale(1.04);
+}
+
+.pov-preview__label {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(10, 12, 18, 0.72);
+  font-size: 12.5px;
+  font-weight: 650;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.pov-preview:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.upsell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 9px 10px 9px 12px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(120deg, rgba(122, 74, 46, 0.12), rgba(233, 196, 140, 0.2));
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.upsell p {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.upsell b {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* vista da cadeira (primeira pessoa) ----------------------------------------- */
+
+.pov {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.6s var(--ease-out) 0.4s;
+}
+
+.pov[data-visible='true'] {
+  opacity: 1;
+}
+
+.pov[data-visible='false'] {
+  transition-delay: 0s;
+}
+
+.pov__where {
+  position: absolute;
+  top: calc(max(18px, env(safe-area-inset-top)) + 58px);
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  padding: 9px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.pov__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px rgba(255, 90, 31, 0.2);
+}
+
+.pov__bar {
+  position: absolute;
+  left: 50%;
+  bottom: max(22px, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  width: min(560px, calc(100vw - 28px));
+  padding: 10px 10px 10px 20px;
+  border-radius: 999px;
+  transform: translateX(-50%);
+}
+
+.pov[data-visible='true'] .pov__bar,
+.pov[data-visible='true'] .pov__where {
+  pointer-events: auto;
+}
+
+.pov__hint {
+  flex: 1;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  font-weight: 560;
+}
+
+.pov__bar .actions {
+  margin: 0;
+}
+
 /* rótulos dentro da cena ---------------------------------------------------- */
 
 .block-label {
@@ -784,6 +938,49 @@
 
   .actions {
     margin-top: 12px;
+  }
+
+  /* cadeira no celular: a prévia da vista vira uma faixa baixa */
+  .panel--seat .chips {
+    display: none;
+  }
+
+  .panel--seat .pov-preview {
+    aspect-ratio: auto;
+    height: 64px;
+    margin-top: 10px;
+  }
+
+  .panel--seat .price {
+    margin-top: 10px;
+  }
+
+  .panel--seat .price strong {
+    font-size: 24px;
+  }
+
+  .pov__where {
+    top: calc(max(18px, env(safe-area-inset-top)) + 54px);
+    max-width: calc(100vw - 28px);
+    overflow: hidden;
+    font-size: 12px;
+    text-overflow: ellipsis;
+  }
+
+  .pov__bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 12px;
+    border-radius: var(--radius-lg);
+  }
+
+  .pov__hint {
+    text-align: center;
+  }
+
+  .pov__bar .btn--primary {
+    flex: 1;
   }
 
   /* camarote no celular: a lista de comodidades sai para sobrar espaço para a vista */

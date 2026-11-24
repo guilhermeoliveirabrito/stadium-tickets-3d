@@ -2,29 +2,15 @@ import { useState } from 'react'
 import { formatPrice } from '../lib/blocks'
 import { getSkyboxes, SKYBOX_AMENITIES } from '../lib/skyboxes'
 import { useExperience } from '../store/experience'
+import { Chevron } from './icons'
 
-function Chevron({ left = false }: { left?: boolean }) {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
-      <path
-        d={left ? 'M10 3L5 8l5 5' : 'M6 3l5 5-5 5'}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-/** Painel do camarote: preço do camarote inteiro, lugares, o que está incluso e a reserva. */
+/** Painel do camarote: preço do camarote inteiro, lugares, o que está incluso e a compra. */
 export function BoxPanel({ visible }: { visible: boolean }) {
   const selectedBox = useExperience((s) => s.selectedBox)
-  const reservedBox = useExperience((s) => s.reservedBox)
+  const order = useExperience((s) => s.order)
   const boxFrom = useExperience((s) => s.boxFrom)
   const selectBox = useExperience((s) => s.selectBox)
-  const reserveBox = useExperience((s) => s.reserveBox)
+  const openCheckout = useExperience((s) => s.openCheckout)
   const back = useExperience((s) => s.back)
   // mantém o último camarote enquanto o painel some
   const [shown, setShown] = useState(selectedBox)
@@ -33,7 +19,7 @@ export function BoxPanel({ visible }: { visible: boolean }) {
 
   const boxes = getSkyboxes()
   const box = boxes[shown]
-  const reserved = reservedBox === box.index
+  const bought = order?.kind === 'box' && order.box === box.index
   const tab = visible ? 0 : -1
   const browse = (step: number) => selectBox((box.index + step + boxes.length) % boxes.length)
 
@@ -65,7 +51,7 @@ export function BoxPanel({ visible }: { visible: boolean }) {
       </p>
       <p className="status" data-sold={box.sold}>
         <span className="status__dot" />
-        {box.sold ? 'Vendido para esta partida' : reserved ? 'Reservado para você' : 'Disponível'}
+        {box.sold ? 'Vendido para esta partida' : bought ? 'Comprado por você' : 'Disponível'}
       </p>
 
       <ul className="amenities">
@@ -77,17 +63,17 @@ export function BoxPanel({ visible }: { visible: boolean }) {
       <div className="actions">
         <button className="btn btn--ghost" type="button" onClick={back} tabIndex={tab}>
           <Chevron left />
-          {boxFrom === 'sector' ? 'Setor' : 'Visão geral'}
+          {boxFrom === 'sector' ? 'Setor' : boxFrom === 'seat' ? 'Cadeira' : 'Visão geral'}
         </button>
         <button
           className="btn btn--primary"
           type="button"
-          onClick={() => reserveBox(reserved ? -1 : box.index)}
+          onClick={() => openCheckout('box')}
           tabIndex={tab}
-          disabled={box.sold}
-          data-done={reserved}
+          disabled={box.sold || bought}
+          data-done={bought}
         >
-          {box.sold ? 'Vendido' : reserved ? 'Reservado ✓' : 'Reservar camarote'}
+          {box.sold ? 'Vendido' : bought ? 'Comprado ✓' : 'Comprar camarote'}
         </button>
       </div>
     </section>

@@ -139,15 +139,20 @@ function drawGithubAd(ctx: CanvasRenderingContext2D, w: number, h: number) {
   ctx.fillRect(w * 0.4, h * 0.74, w * 0.2, 6)
 }
 
-/** O que mostrar na tela "sua escolha" (cadeira escolhida ou camarote reservado). */
+/** O que mostrar na tela "sua escolha": a cadeira escolhida ou o que foi comprado. */
 function pickText() {
-  const { selectedSeat, selectedBlock, reservedBox } = useExperience.getState()
-  if (selectedSeat >= 0 && selectedBlock >= 0) {
-    const seat = seatLabel(selectedSeat)
-    const block = getLayout().blocks[selectedBlock]
-    return { title: 'SUA CADEIRA', detail: `BLOCO ${block.number}  ·  FILEIRA ${seat.row}  ·  CADEIRA ${seat.number}` }
+  const { selectedSeat, order } = useExperience.getState()
+  const seat = selectedSeat >= 0 ? selectedSeat : order?.kind === 'seat' ? order.seat : -1
+  if (seat >= 0) {
+    const { seats, blocks } = getLayout()
+    const label = seatLabel(seat)
+    const bought = order?.kind === 'seat' && order.seat === seat
+    return {
+      title: bought ? 'SEU INGRESSO' : 'SUA CADEIRA',
+      detail: `BLOCO ${blocks[seats.block[seat]].number}  ·  FILEIRA ${label.row}  ·  CADEIRA ${label.number}`,
+    }
   }
-  if (reservedBox >= 0) return { title: 'SEU CAMAROTE', detail: formatSkybox(getSkyboxes()[reservedBox]).toUpperCase() }
+  if (order?.kind === 'box') return { title: 'SEU CAMAROTE', detail: formatSkybox(getSkyboxes()[order.box]).toUpperCase() }
   return null
 }
 

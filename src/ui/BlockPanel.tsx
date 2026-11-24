@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { formatPrice, getBlockInfo, seatLabel } from '../lib/blocks'
 import { useExperience } from '../store/experience'
+import { Chevron } from './icons'
 
 const canHover = window.matchMedia('(hover: hover)').matches
 
@@ -9,6 +10,7 @@ export function BlockPanel({ visible }: { visible: boolean }) {
   const selectedBlock = useExperience((s) => s.selectedBlock)
   const selectedSeat = useExperience((s) => s.selectedSeat)
   const back = useExperience((s) => s.back)
+  const openSeat = useExperience((s) => s.openSeat)
   const [shown, setShown] = useState(selectedBlock)
   if (selectedBlock >= 0 && selectedBlock !== shown) setShown(selectedBlock)
   if (shown < 0) return null
@@ -58,11 +60,15 @@ export function BlockPanel({ visible }: { visible: boolean }) {
 
       <div className="actions">
         <button className="btn btn--ghost" type="button" onClick={back} tabIndex={visible ? 0 : -1}>
-          <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M10 3L5 8l5 5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <Chevron left />
           Setor
         </button>
+        {seat && !seat.taken && (
+          <button className="btn btn--primary" type="button" onClick={openSeat} tabIndex={visible ? 0 : -1}>
+            Continuar
+            <Chevron />
+          </button>
+        )}
       </div>
     </section>
   )

@@ -1,11 +1,23 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import gsap from 'gsap'
 import { useEffect, useRef } from 'react'
-import { MathUtils, PerspectiveCamera } from 'three'
+import { MathUtils, PerspectiveCamera, Vector3 } from 'three'
 import { getBlockInfo } from '../lib/blocks'
 import { getSkyboxes } from '../lib/skyboxes'
 import { introDisabled, type Phase, useExperience } from '../store/experience'
-import { aerialPose, blockPose, boxPose, INTRO_START, INTRO_SWEEP, type Pose, sectorPose } from './cameraPoses'
+import {
+  aerialPose,
+  blockPose,
+  boxPose,
+  type Eye,
+  INTRO_START,
+  INTRO_SWEEP,
+  type Pose,
+  seatEye,
+  seatPose,
+  sectorPose,
+} from './cameraPoses'
+import { cameraState } from './cameraState'
 import { outside } from './outside'
 import { outsideFog } from './outsideFog'
 
@@ -14,11 +26,18 @@ function angleDelta(from: number, to: number) {
   return MathUtils.euclideanModulo(to - from + Math.PI, Math.PI * 2) - Math.PI
 }
 
-/** Pose de cada etapa da escolha para a proporção de tela atual. */
-function poseFor(phase: Phase, block: number, box: number, aspect: number, out?: Pose) {
-  if (phase === 'sector' && block >= 0) return sectorPose(getBlockInfo(block), aspect, out)
-  if (phase === 'block' && block >= 0) return blockPose(getBlockInfo(block), aspect, out)
-  if (phase === 'box' && box >= 0) return boxPose(getSkyboxes()[box], aspect, out)
+interface Selection {
+  block: number
+  box: number
+  seat: number
+}
+
+/** Pose (em órbita) de cada etapa da escolha para a proporção de tela atual. */
+function poseFor(phase: Phase, sel: Selection, aspect: number, out?: Pose) {
+  if (phase === 'sector' && sel.block >= 0) return sectorPose(getBlockInfo(sel.block), aspect, out)
+  if (phase === 'block' && sel.block >= 0) return blockPose(getBlockInfo(sel.block), aspect, out)
+  if (phase === 'seat' && sel.seat >= 0) return seatPose(sel.seat, aspect, out)
+  if (phase === 'box' && sel.box >= 0) return boxPose(getSkyboxes()[sel.box], aspect, out)
   return aerialPose(aspect, out)
 }
 
@@ -28,8 +47,10 @@ function transitionDuration(from: Phase, to: Phase) {
   if (from === 'box' && to === 'box') return 1.3
   if (to === 'box') return from === 'aerial' ? 2.8 : 2
   if (from === 'box') return to === 'aerial' ? 2.5 : 1.9
+  if (to === 'seat') return from === 'block' ? 1.8 : 2.2
+  if (from === 'seat' && to === 'block') return 1.6
   if (to === 'block') return 2
-  if (to === 'aerial') return 2.3
+  if (to === 'aerial') return from === 'seat' || from === 'pov' ? 3.2 : 2.3
   if (from === 'block') return 1.7
   // de um bloco para outro dentro da vista de setor
   if (from === 'sector') return 1.5
@@ -37,23 +58,34 @@ function transitionDuration(from: Phase, to: Phase) {
   return 2.6
 }
 
-const navigable = (phase: Phase) => phase === 'aerial' || phase === 'sector' || phase === 'block' || phase === 'box'
+/** etapas em que a câmera fica parada numa pose em órbita */
+const navigable = (phase: Phase) =>
+  phase === 'aerial' || phase === 'sector' || phase === 'block' || phase === 'seat' || phase === 'box'
+/** etapas que posicionam a câmera (no pagamento e no ingresso ela fica onde estava) */
+const placesCamera = (phase: Phase) => navigable(phase) || phase === 'pov'
+
+const UP = new Vector3(0, 1, 0)
 
 export function CameraRig() {
   const get = useThree((s) => s.get)
   const phase = useExperience((s) => s.phase)
   const selectedBlock = useExperience((s) => s.selectedBlock)
   const selectedBox = useExperience((s) => s.selectedBox)
+  const selectedSeat = useExperience((s) => s.selectedSeat)
   const introSkipped = useExperience((s) => s.introSkipped)
   const setPhase = useExperience((s) => s.setPhase)
 
   const rig = useRef<Pose>({ ...(introDisabled ? aerialPose(1.6) : INTRO_START) })
   const timeline = useRef<gsap.core.Timeline | null>(null)
-  const transition = useRef<gsap.core.Tween | null>(null)
-  const previous = useRef({ phase, block: selectedBlock, box: selectedBox })
+  const transition = useRef<gsap.core.Animation | null>(null)
+  const previous = useRef<{ phase: Phase } & Selection>({ phase, block: selectedBlock, box: selectedBox, seat: selectedSeat })
   const motion = useRef({ parallaxX: 0, parallaxY: 0, idle: 0, parallax: 1 })
   const view = useRef({ shift: 0, width: 0, height: 0 })
   const settled = useRef(aerialPose(1.6))
+  // primeira pessoa (vista da cadeira): olho, olhar em volta arrastando e o balanço parado
+  const eye = useRef<Eye & { active: boolean }>({ active: false, x: 0, y: 0, z: 0, yaw: 0, pitch: 0, fov: 50 })
+  const look = useRef({ yaw: 0, pitch: 0, targetYaw: 0, targetPitch: 0, lastInput: -1e9, sway: 0 })
+  const scratch = useRef({ position: new Vector3(), direction: new Vector3() })
 
   useEffect(() => {
     if (phase !== 'intro') return
@@ -83,18 +115,106 @@ export function CameraRig() {
     }
   }, [introSkipped, phase, setPhase, get])
 
-  // passagens entre visão geral, setor e bloco
+  // passagens entre as etapas (no pagamento e no ingresso a câmera fica onde está)
   useEffect(() => {
+    if (!placesCamera(phase)) return
     const from = previous.current
-    previous.current = { phase, block: selectedBlock, box: selectedBox }
-    if (!navigable(phase) || !navigable(from.phase)) return
-    if (from.phase === phase && from.block === selectedBlock && from.box === selectedBox) return
+    const sel: Selection = { block: selectedBlock, box: selectedBox, seat: selectedSeat }
+    previous.current = { phase, ...sel }
+    if (!placesCamera(from.phase)) return
+    if (from.phase === phase && from.block === sel.block && from.box === sel.box && from.seat === sel.seat) return
 
     const { width, height } = get().size
+    const aspect = width / height
+    const camera = get().camera as PerspectiveCamera
     const pose = rig.current
-    const target = poseFor(phase, selectedBlock, selectedBox, width / height)
-    target.az = pose.az + angleDelta(pose.az, target.az)
+    const e = eye.current
     transition.current?.kill()
+    cameraState.povReady = false
+
+    // Câmera atual em primeira pessoa (posição, rumo e inclinação do olhar).
+    const fromCamera = () => {
+      const { direction } = scratch.current
+      camera.getWorldDirection(direction)
+      e.x = camera.position.x
+      e.y = camera.position.y
+      e.z = camera.position.z
+      e.yaw = Math.atan2(direction.x, direction.z)
+      e.pitch = Math.asin(MathUtils.clamp(direction.y, -1, 1))
+      e.fov = camera.fov
+    }
+
+    if (phase === 'pov') {
+      // Da frente da cadeira até os olhos de quem senta nela: a câmera desce
+      // até o assento enquanto vira para o campo, como quem se senta.
+      if (!e.active) fromCamera()
+      e.active = true
+      cameraState.pov = true
+      Object.assign(look.current, { yaw: 0, pitch: 0, targetYaw: 0, targetPitch: 0, lastInput: -1e9 })
+      const to = seatEye(sel.seat, aspect)
+      const tl = gsap.timeline({
+        onComplete: () => {
+          transition.current = null
+          cameraState.povReady = true
+        },
+      })
+      tl.to(e, { x: to.x, y: to.y, z: to.z, duration: 1.9, ease: 'power2.inOut' }, 0)
+      tl.to(e, { yaw: e.yaw + angleDelta(e.yaw, to.yaw), pitch: to.pitch, duration: 2.1, ease: 'power2.inOut' }, 0.35)
+      tl.to(e, { fov: to.fov, duration: 1.8, ease: 'power2.inOut' }, 0.6)
+      transition.current = tl
+      return
+    }
+
+    if (e.active) {
+      // Saindo da vista da cadeira. De volta para a frente da cadeira, o
+      // caminho é o inverso; para outra etapa, a câmera em primeira pessoa
+      // vira uma pose em órbita equivalente e segue dali.
+      fromCamera()
+      cameraState.pov = false
+      if (phase === 'seat') {
+        const target = seatPose(sel.seat, aspect)
+        const h = target.dist * Math.cos(target.el)
+        const position = scratch.current.position.set(
+          target.tx + h * Math.sin(target.az),
+          target.ty + target.dist * Math.sin(target.el),
+          target.tz + h * Math.cos(target.az),
+        )
+        const dx = target.tx - position.x
+        const dy = target.ty - position.y
+        const dz = target.tz - position.z
+        const yaw = Math.atan2(dx, dz)
+        const pitch = Math.atan2(dy, Math.hypot(dx, dz))
+        const tl = gsap.timeline({
+          onComplete: () => {
+            e.active = false
+            Object.assign(pose, target)
+            transition.current = null
+          },
+        })
+        tl.to(e, { yaw: e.yaw + angleDelta(e.yaw, yaw), pitch, duration: 1.8, ease: 'power2.inOut' }, 0)
+        tl.to(e, { x: position.x, y: position.y, z: position.z, duration: 1.7, ease: 'power2.inOut' }, 0.3)
+        tl.to(e, { fov: target.fov, duration: 1.6, ease: 'power2.inOut' }, 0.2)
+        transition.current = tl
+        return
+      }
+      // pose em órbita que reproduz a câmera atual, com o alvo 30 m à frente
+      const d = 30
+      const { direction } = scratch.current
+      direction.set(Math.sin(e.yaw) * Math.cos(e.pitch), Math.sin(e.pitch), Math.cos(e.yaw) * Math.cos(e.pitch))
+      pose.tx = e.x + direction.x * d
+      pose.ty = e.y + direction.y * d
+      pose.tz = e.z + direction.z * d
+      pose.dist = d
+      pose.az = Math.atan2(-direction.x, -direction.z)
+      pose.el = Math.asin(-direction.y)
+      pose.fov = e.fov
+      pose.shift = 0
+      pose.inside = 1
+      e.active = false
+    }
+
+    const target = poseFor(phase, sel, aspect)
+    target.az = pose.az + angleDelta(pose.az, target.az)
     transition.current = gsap.to(pose, {
       ...target,
       duration: transitionDuration(from.phase, phase),
@@ -103,51 +223,122 @@ export function CameraRig() {
         transition.current = null
       },
     })
-  }, [phase, selectedBlock, selectedBox, get])
+  }, [phase, selectedBlock, selectedBox, selectedSeat, get])
+
+  // Olhar em volta na vista da cadeira: arrastar (mouse ou dedo) gira o olhar,
+  // dentro de limites, como quem vira a cabeça.
+  useEffect(() => {
+    if (phase !== 'pov') return
+    const canvas = get().gl.domElement
+    let dragging = false
+    let lastX = 0
+    let lastY = 0
+    const down = (event: PointerEvent) => {
+      dragging = true
+      lastX = event.clientX
+      lastY = event.clientY
+      canvas.setPointerCapture?.(event.pointerId)
+    }
+    const move = (event: PointerEvent) => {
+      if (!dragging) return
+      const l = look.current
+      const scale = 2.4 / Math.max(window.innerWidth, window.innerHeight)
+      l.targetYaw = MathUtils.clamp(l.targetYaw + (event.clientX - lastX) * scale, -1.35, 1.35)
+      l.targetPitch = MathUtils.clamp(l.targetPitch + (event.clientY - lastY) * scale, -0.5, 0.45)
+      l.lastInput = performance.now()
+      lastX = event.clientX
+      lastY = event.clientY
+    }
+    const up = () => {
+      dragging = false
+    }
+    canvas.addEventListener('pointerdown', down)
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
+    canvas.style.touchAction = 'none'
+    canvas.style.cursor = 'grab'
+    return () => {
+      canvas.removeEventListener('pointerdown', down)
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
+      canvas.style.touchAction = ''
+      canvas.style.cursor = ''
+    }
+  }, [phase, get])
 
   useFrame((state, delta) => {
     const pose = rig.current
     const m = motion.current
     const camera = state.camera as PerspectiveCamera
     const aerial = phase === 'aerial'
+    const e = eye.current
 
-    if (navigable(phase) && !transition.current) {
-      // parada numa etapa: acompanha redimensionamentos da janela
-      const target = poseFor(phase, selectedBlock, selectedBox, state.size.width / state.size.height, settled.current)
-      pose.dist = MathUtils.damp(pose.dist, target.dist, 3, delta)
-      pose.tx = MathUtils.damp(pose.tx, target.tx, 3, delta)
-      pose.ty = MathUtils.damp(pose.ty, target.ty, 3, delta)
-      pose.tz = MathUtils.damp(pose.tz, target.tz, 3, delta)
-      pose.shift = MathUtils.damp(pose.shift, target.shift, 3, delta)
-      pose.inside = MathUtils.damp(pose.inside, target.inside, 3, delta)
-      pose.az += angleDelta(pose.az, target.az) * (1 - Math.exp(-3 * delta))
-    }
-    if (aerial) m.idle += delta
+    if (e.active) {
+      // primeira pessoa: olho na cadeira, mais o olhar em volta
+      const l = look.current
+      const idle = (performance.now() - l.lastInput) / 1000
+      // parado por uns segundos, o olhar passeia devagar pelo estádio
+      l.sway = MathUtils.damp(l.sway, phase === 'pov' && idle > 3 && !transition.current ? 1 : 0, 0.8, delta)
+      const t = state.clock.elapsedTime
+      l.yaw = MathUtils.damp(l.yaw, l.targetYaw, 6, delta)
+      l.pitch = MathUtils.damp(l.pitch, l.targetPitch, 6, delta)
+      const yaw = e.yaw + l.yaw + Math.sin(t * 0.32) * 0.14 * l.sway
+      const pitch = MathUtils.clamp(e.pitch + l.pitch + Math.sin(t * 0.47) * 0.035 * l.sway, -1.2, 1.2)
+      camera.position.set(e.x, e.y, e.z)
+      const { direction } = scratch.current
+      direction.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch))
+      camera.up.copy(UP)
+      camera.lookAt(e.x + direction.x, e.y + direction.y, e.z + direction.z)
+      if (Math.abs(camera.fov - e.fov) > 1e-3 || Math.abs(camera.near - 0.12) > 1e-3) {
+        camera.fov = e.fov
+        camera.near = 0.12
+        camera.updateProjectionMatrix()
+      }
+      pose.inside = 1
+      pose.shift = 0
+    } else {
+      if (navigable(phase) && !transition.current) {
+        // parada numa etapa: acompanha redimensionamentos da janela
+        const sel = { block: selectedBlock, box: selectedBox, seat: selectedSeat }
+        const target = poseFor(phase, sel, state.size.width / state.size.height, settled.current)
+        pose.dist = MathUtils.damp(pose.dist, target.dist, 3, delta)
+        pose.tx = MathUtils.damp(pose.tx, target.tx, 3, delta)
+        pose.ty = MathUtils.damp(pose.ty, target.ty, 3, delta)
+        pose.tz = MathUtils.damp(pose.tz, target.tz, 3, delta)
+        pose.shift = MathUtils.damp(pose.shift, target.shift, 3, delta)
+        pose.inside = MathUtils.damp(pose.inside, target.inside, 3, delta)
+        pose.az += angleDelta(pose.az, target.az) * (1 - Math.exp(-3 * delta))
+      }
+      if (aerial) m.idle += delta
 
-    // parallax suave com o mouse (menor no setor e nenhum na escolha da
-    // cadeira, para a cadeira não fugir do cursor) e uma leve deriva parada
-    m.parallax = MathUtils.damp(m.parallax, aerial ? 1 : phase === 'sector' ? 0.45 : phase === 'block' ? 0 : phase === 'box' ? 0.25 : 1, 2, delta)
-    m.parallaxX = MathUtils.damp(m.parallaxX, navigable(phase) ? state.pointer.x * m.parallax : 0, 2.5, delta)
-    m.parallaxY = MathUtils.damp(m.parallaxY, navigable(phase) ? state.pointer.y * m.parallax : 0, 2.5, delta)
-    const drift = aerial ? Math.sin(m.idle * 0.12) * 0.025 : 0
+      // parallax suave com o mouse (menor no setor e nenhum na escolha da
+      // cadeira, para a cadeira não fugir do cursor) e uma leve deriva parada
+      const parallax = aerial ? 1 : phase === 'sector' ? 0.45 : phase === 'box' ? 0.25 : phase === 'seat' ? 0.2 : 0
+      m.parallax = MathUtils.damp(m.parallax, navigable(phase) ? parallax : 0, 2, delta)
+      m.parallaxX = MathUtils.damp(m.parallaxX, state.pointer.x * m.parallax, 2.5, delta)
+      m.parallaxY = MathUtils.damp(m.parallaxY, state.pointer.y * m.parallax, 2.5, delta)
+      const drift = aerial ? Math.sin(m.idle * 0.12) * 0.025 : 0
 
-    const az = pose.az + m.parallaxX * 0.045 + drift
-    const el = Math.min(1.45, pose.el + m.parallaxY * 0.03)
-    const horizontal = pose.dist * Math.cos(el)
-    camera.position.set(
-      pose.tx + horizontal * Math.sin(az),
-      pose.ty + pose.dist * Math.sin(el),
-      pose.tz + horizontal * Math.cos(az),
-    )
-    camera.lookAt(pose.tx, pose.ty, pose.tz)
+      const az = pose.az + m.parallaxX * 0.045 + drift
+      const el = Math.min(1.45, pose.el + m.parallaxY * 0.03)
+      const horizontal = pose.dist * Math.cos(el)
+      camera.position.set(
+        pose.tx + horizontal * Math.sin(az),
+        pose.ty + pose.dist * Math.sin(el),
+        pose.tz + horizontal * Math.cos(az),
+      )
+      camera.lookAt(pose.tx, pose.ty, pose.tz)
 
-    // de perto o plano de corte próximo também se aproxima; de longe ele fica
-    // afastado para não perder precisão de profundidade na cidade
-    const near = MathUtils.clamp(pose.dist * 0.05, 1, 4)
-    if (Math.abs(camera.fov - pose.fov) > 1e-3 || Math.abs(camera.near - near) > 0.02) {
-      camera.fov = pose.fov
-      camera.near = near
-      camera.updateProjectionMatrix()
+      // de perto o plano de corte próximo também se aproxima; de longe ele fica
+      // afastado para não perder precisão de profundidade na cidade
+      const near = MathUtils.clamp(pose.dist * 0.05, 0.12, 4)
+      if (Math.abs(camera.fov - pose.fov) > 1e-3 || Math.abs(camera.near - near) > 0.02) {
+        camera.fov = pose.fov
+        camera.near = near
+        camera.updateProjectionMatrix()
+      }
     }
 
     // Entrando no estádio, tudo o que fica fora dele se apaga na neblina

@@ -1,11 +1,40 @@
 import { create } from 'zustand'
+import { getBlockInfo } from '../lib/blocks'
+import { getLayout } from '../lib/layout'
+import { getSkyboxes } from '../lib/skyboxes'
 
 /**
  * loading → intro → aerial (visão geral) → sector (câmera desce até o setor)
- * → block (de frente para o bloco, escolhendo a cadeira). Os camarotes têm
- * uma etapa própria, box, aberta da visão geral ou do setor.
+ * → block (de frente para o bloco, escolhendo a cadeira) → seat (zoom na
+ * cadeira) ⇄ pov (a vista de quem senta nela) → checkout (pagamento) → done
+ * (ingresso). Os camarotes têm uma etapa própria, box, aberta da visão geral,
+ * do setor ou da cadeira, e também seguem para o pagamento.
  */
-export type Phase = 'loading' | 'intro' | 'aerial' | 'sector' | 'block' | 'box'
+export type Phase = 'loading' | 'intro' | 'aerial' | 'sector' | 'block' | 'seat' | 'pov' | 'box' | 'checkout' | 'done'
+
+export type PaymentMethod = 'pix' | 'card' | 'wallet'
+
+/** O que vai ser (ou foi) comprado. */
+export interface OrderItem {
+  kind: 'seat' | 'box'
+  /** cadeira (índice global) e bloco, para ingresso de cadeira */
+  seat: number
+  block: number
+  /** camarote, para ingresso de camarote */
+  box: number
+  price: number
+}
+
+export interface Order extends OrderItem {
+  id: string
+  fee: number
+  total: number
+  name: string
+  method: PaymentMethod
+}
+
+/** taxa de serviço sobre o valor do ingresso */
+export const SERVICE_FEE = 0.1
 
 interface ExperienceState {
   phase: Phase
@@ -21,10 +50,16 @@ interface ExperienceState {
   /** camarote sob o cursor e camarote aberto (-1 = nenhum) */
   hoverBox: number
   selectedBox: number
-  /** camarote reservado (-1 = nenhum) */
-  reservedBox: number
-  /** etapa para onde volta quem sai do camarote */
+  /** etapa para onde volta quem sai do camarote e quem sai da vista da cadeira */
   boxFrom: Phase
+  povFrom: Phase
+  /** item em pagamento e a etapa para onde o "voltar" do pagamento leva */
+  checkoutItem: OrderItem | null
+  checkoutFrom: Phase
+  /** compra concluída (o ingresso) */
+  order: Order | null
+  /** foto da vista da cadeira, tirada ao entrar no POV (para o ingresso) */
+  povShot: { seat: number; url: string } | null
   setPhase: (phase: Phase) => void
   setSceneReady: () => void
   skipIntro: () => void
@@ -35,12 +70,30 @@ interface ExperienceState {
   openBlock: () => void
   setHoverSeat: (seat: number) => void
   selectSeat: (seat: number) => void
+  /** da vista do bloco para o zoom na cadeira escolhida */
+  openSeat: () => void
+  /** do zoom na cadeira (ou do ingresso) para a vista de quem senta nela */
+  openPov: () => void
   setHoverBox: (box: number) => void
-  /** abre a vista de um camarote (da visão geral, do setor ou de outro camarote) */
+  /** abre a vista de um camarote (da visão geral, do setor, da cadeira ou de outro camarote) */
   selectBox: (box: number) => void
-  reserveBox: (box: number) => void
-  /** volta uma etapa (bloco → setor → visão geral; camarote → de onde veio) */
+  /** vai para o pagamento da cadeira escolhida ou do camarote aberto */
+  openCheckout: (kind: 'seat' | 'box') => void
+  /** conclui a compra (fictícia) e mostra o ingresso */
+  confirmPurchase: (name: string, method: PaymentMethod) => void
+  /** recomeça do zero, na visão geral */
+  startOver: () => void
+  setPovShot: (shot: { seat: number; url: string }) => void
+  /** volta uma etapa (pov → cadeira → bloco → setor → visão geral; camarote e pagamento → de onde vieram) */
   back: () => void
+}
+
+/** Código do pedido, como "TRB-7K2Q9M" (sem letras que se confundem com números). */
+function orderId() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let id = ''
+  for (let i = 0; i < 6; i++) id += alphabet[Math.floor(Math.random() * alphabet.length)]
+  return `TRB-${id}`
 }
 
 export const useExperience = create<ExperienceState>((set, get) => ({
@@ -53,8 +106,12 @@ export const useExperience = create<ExperienceState>((set, get) => ({
   selectedSeat: -1,
   hoverBox: -1,
   selectedBox: -1,
-  reservedBox: -1,
   boxFrom: 'aerial',
+  povFrom: 'seat',
+  checkoutItem: null,
+  checkoutFrom: 'seat',
+  order: null,
+  povShot: null,
   setPhase: (phase) => set({ phase }),
   setSceneReady: () => set({ sceneReady: true }),
   skipIntro: () => set({ introSkipped: true }),
@@ -74,12 +131,20 @@ export const useExperience = create<ExperienceState>((set, get) => ({
     if (get().hoverSeat !== hoverSeat) set({ hoverSeat })
   },
   selectSeat: (selectedSeat) => set({ selectedSeat }),
+  openSeat: () => {
+    const { phase, selectedSeat } = get()
+    if (phase === 'block' && selectedSeat >= 0) set({ phase: 'seat', hoverSeat: -1 })
+  },
+  openPov: () => {
+    const { phase, selectedSeat } = get()
+    if ((phase === 'seat' || phase === 'done') && selectedSeat >= 0) set({ phase: 'pov', povFrom: phase })
+  },
   setHoverBox: (hoverBox) => {
     if (get().hoverBox !== hoverBox) set({ hoverBox })
   },
   selectBox: (box) => {
     const { phase } = get()
-    if (phase !== 'aerial' && phase !== 'sector' && phase !== 'box') return
+    if (phase !== 'aerial' && phase !== 'sector' && phase !== 'box' && phase !== 'seat') return
     set({
       selectedBox: box,
       phase: 'box',
@@ -88,14 +153,55 @@ export const useExperience = create<ExperienceState>((set, get) => ({
       hoverBox: -1,
     })
   },
-  reserveBox: (reservedBox) => set({ reservedBox }),
+  openCheckout: (kind) => {
+    const { phase, selectedSeat, selectedBlock, selectedBox } = get()
+    if (kind === 'seat') {
+      if ((phase !== 'seat' && phase !== 'pov') || selectedSeat < 0) return
+      const item: OrderItem = { kind, seat: selectedSeat, block: selectedBlock, box: -1, price: getBlockInfo(selectedBlock).price }
+      set({ checkoutItem: item, checkoutFrom: phase, phase: 'checkout' })
+    } else {
+      if (phase !== 'box' || selectedBox < 0 || getSkyboxes()[selectedBox].sold) return
+      const item: OrderItem = { kind, seat: -1, block: -1, box: selectedBox, price: getSkyboxes()[selectedBox].price }
+      set({ checkoutItem: item, checkoutFrom: phase, phase: 'checkout' })
+    }
+  },
+  confirmPurchase: (name, method) => {
+    const { phase, checkoutItem } = get()
+    if (phase !== 'checkout' || !checkoutItem) return
+    const fee = Math.round(checkoutItem.price * SERVICE_FEE)
+    set({
+      phase: 'done',
+      order: { ...checkoutItem, id: orderId(), fee, total: checkoutItem.price + fee, name: name.trim(), method },
+    })
+  },
+  startOver: () =>
+    set({
+      phase: 'aerial',
+      selectedBlock: -1,
+      selectedSeat: -1,
+      hoverBlock: -1,
+      hoverSeat: -1,
+      selectedBox: -1,
+      hoverBox: -1,
+      checkoutItem: null,
+    }),
+  setPovShot: (povShot) => set({ povShot }),
   back: () => {
-    const { phase, boxFrom } = get()
+    const { phase, boxFrom, povFrom, checkoutFrom } = get()
     if (phase === 'block') set({ phase: 'sector', hoverSeat: -1, selectedSeat: -1 })
     else if (phase === 'sector') set({ phase: 'aerial', selectedBlock: -1, hoverBlock: -1, hoverBox: -1 })
+    else if (phase === 'seat') set({ phase: 'block' })
+    else if (phase === 'pov') set({ phase: povFrom })
     else if (phase === 'box') set({ phase: boxFrom, selectedBox: -1, hoverBox: -1 })
+    else if (phase === 'checkout') set({ phase: checkoutFrom })
   },
 }))
+
+/** Lugar de uma cadeira em texto: "Bloco 232 · Fileira 7 · Cadeira 11". */
+export function seatPlace(seat: number) {
+  const { seats, blocks } = getLayout()
+  return `Bloco ${blocks[seats.block[seat]].number} · Fileira ${seats.row[seat]} · Cadeira ${seats.number[seat]}`
+}
 
 /** ?intro=0 pula a abertura (útil durante o desenvolvimento). */
 export const introDisabled = new URLSearchParams(window.location.search).get('intro') === '0'
